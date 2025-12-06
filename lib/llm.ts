@@ -36,6 +36,34 @@ async function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function stripAccents(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^\x00-\x7F]+/g, '');
+}
+
+export function sanitizeEnglishContent<T>(payload: T): T {
+  if (typeof payload === 'string') {
+    return stripAccents(payload) as unknown as T;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.map((item) => sanitizeEnglishContent(item)) as unknown as T;
+  }
+
+  if (payload && typeof payload === 'object') {
+    const sanitizedEntries = Object.entries(payload as Record<string, unknown>).map(([key, value]) => [
+      key,
+      sanitizeEnglishContent(value),
+    ]);
+
+    return Object.fromEntries(sanitizedEntries) as T;
+  }
+
+  return payload;
+}
+
 function validateApiKey(): void {
   const apiKey = process.env.OPENAI_API_KEY;
   
@@ -354,7 +382,8 @@ function parseWithSchema<T extends z.ZodTypeAny>(
   }
 
   try {
-    return schema.parse(parsed);
+    const sanitized = sanitizeEnglishContent(parsed) as T;
+    return schema.parse(sanitized);
   } catch (validationError) {
     console.error(`[LLM:${context.stage}] Schema validation failed`, parsed);
     const issues = validationError instanceof z.ZodError ? validationError.issues : undefined;
