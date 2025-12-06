@@ -9,6 +9,8 @@ An AI-assisted workflow built with Next.js 14 that generates five-class weekly l
 - **Pedagogy validation**: Automated checks for Montessori (choice, hands-on, self-paced, self-correction), constructivist (prior knowledge, guided discovery, social interaction), and critical-thinking (open questions, evidence-based claims, peer discussion) requirements.
 - **Lesson Plan Builder UI**: Montessori-inspired palette with checklist badges, lesson cards, and inline compliance indicators.
 - **Exports**: Download Markdown/PDF/EPUB or use the print-friendly layout for sharing.
+- **Class package orchestrator**: Topic-level sub-agents (conceptual, examples, exercises/evaluation, resources, pedagogy review)
+  generate leveled materials with Bloom alignment and publication-ready Markdown/HTML.
 
 ## Data model
 
@@ -137,6 +139,93 @@ Generates a validated weekly lesson program (5 lessons).
     "gradeLevel": "Upper Elementary",
     "learnerProfile": "Hands-on learners who like field work",
     "constraints": "Low-cost, easily sourced materials",
+  "generatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+### POST `/api/generate-class-package`
+Builds a publication-ready class package that launches topic-level sub-agents (conceptual explanation, examples, exercises/evaluation, complementary resources, pedagogy review) and validates minimum length, objective coverage, and Bloom alignment.
+
+**Request body**
+```json
+{
+  "classTitle": "Data Literacy for High School",
+  "level": "Intermediate",
+  "bloomLevel": "analyze",
+  "overallObjectives": ["Interpret charts", "Critique misleading statistics"],
+  "syllabus": [
+    { "topic": "Data Types", "objectives": ["Differentiate categorical and numerical data"] },
+    { "topic": "Visual Literacy", "objectives": ["Read line and bar charts", "Spot bias"] }
+  ],
+  "constraints": "Prefer low-cost datasets and browser-based tools"
+}
+```
+
+**Response**
+```json
+{
+  "classTitle": "Data Literacy for High School",
+  "level": "Intermediate",
+  "bloomLevel": "analyze",
+  "overallObjectives": ["..."],
+  "syllabus": [
+    { "topic": "Data Types", "objectives": ["..."] }
+  ],
+  "topics": [
+    {
+      "topic": "Data Types",
+      "levelTemplate": "How the template fits the intermediate level",
+      "bloomTarget": "analyze",
+      "objectives": ["..."],
+      "sections": {
+        "introduction": "...",
+        "theory": "...",
+        "examples": ["..."],
+        "exercises_with_solutions": [
+          { "prompt": "...", "solution": "...", "bloom_focus": "apply" }
+        ],
+        "self_assessment": ["..."],
+        "resources": ["..."]
+      },
+      "coverage": {
+        "objectivesAddressed": ["..."],
+        "bloomAlignment": "...",
+        "minimumLengthRationale": "..."
+      },
+      "subagentNotes": {
+        "conceptual": "...",
+        "examples": "...",
+        "exercises": "...",
+        "resources": "...",
+        "review": "..."
+      },
+      "validation": {
+        "minLengthOk": true,
+        "objectivesCovered": true,
+        "bloomAligned": true,
+        "issues": []
+      }
+    }
+  ],
+  "consolidated": {
+    "overview": "...",
+    "publishingNotes": "...",
+    "learnerJourney": "...",
+    "qaChecklist": "..."
+  },
+  "validation": {
+    "englishOnly": true,
+    "topicsPassed": 2,
+    "totalTopics": 2,
+    "blockingIssues": []
+  },
+  "markdown": "...",
+  "html": "...",
+  "meta": {
+    "level": "Intermediate",
+    "bloomLevel": "analyze",
+    "constraints": "Prefer low-cost datasets and browser-based tools",
     "generatedAt": "2024-01-01T00:00:00.000Z"
   }
 }

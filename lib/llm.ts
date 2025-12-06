@@ -1,13 +1,23 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import { WEEKLY_LESSON_SYSTEM_PROMPT, WEEKLY_MARKDOWN_FORMAT_PROMPT } from './prompts';
 import {
+  CLASS_ORCHESTRATOR_PROMPT,
+  WEEKLY_LESSON_SYSTEM_PROMPT,
+  WEEKLY_MARKDOWN_FORMAT_PROMPT,
+} from './prompts';
+import {
+  ClassPackage,
+  ClassPackageSchema,
+  ClassPlanRequest,
+  ClassPlanRequestSchema,
   LessonPlanInput,
   LessonPlanInputSchema,
+  ValidatedClassPackage,
   ValidatedWeeklyProgram,
   WeeklyProgram,
   WeeklyProgramSchema,
   validateWeeklyProgram,
+  validateClassPackage,
 } from './schemas';
 
 const MAX_LLM_ATTEMPTS = 3;
@@ -448,6 +458,47 @@ export async function generateWeeklyProgram(input: LessonPlanInput): Promise<Val
   });
 }
 
+export async function generateClassMaterialsPackage(
+  input: ClassPlanRequest
+): Promise<ValidatedClassPackage> {
+  const prompt = JSON.stringify(input, null, 2);
+
+  let attempt = 0;
+  let lastIssues: string[] = [];
+  let lastDraft: ClassPackage | null = null;
+  let lastRaw = '';
+
+  while (attempt < MAX_LLM_ATTEMPTS) {
+    const repairContext =
+      attempt === 0
+        ? ''
+        : `\nPrevious draft failed validation:\n- ${lastIssues.join('\n- ')}\nReturn corrected, fully populated JSON only. Here is the last attempt for reference:\n${JSON.stringify(lastDraft, null, 2)}`;
+
+    const response = await generateText(`${prompt}${repairContext}`, CLASS_ORCHESTRATOR_PROMPT, 'gpt-4o-mini', true);
+    lastRaw = response;
+
+    const structured: ClassPackage = parseWithSchema(response, ClassPackageSchema, {
+      provider: 'openai',
+      stage: 'class-package',
+    });
+
+    const validated = validateClassPackage(input, structured);
+    if (validated.validation.blockingIssues.length === 0) {
+      return validated;
+    }
+
+    attempt += 1;
+    lastDraft = structured;
+    lastIssues = validated.validation.blockingIssues;
+    await wait(RETRY_BASE_DELAY_MS * attempt);
+  }
+
+  throw new LLMServiceError('Class materials failed validation after retries', 'schema-validation', {
+    issues: lastIssues,
+    lastRaw,
+  });
+}
+
 export async function formatWeeklyMarkdown(program: ValidatedWeeklyProgram): Promise<string> {
   const prompt = JSON.stringify(program, null, 2);
 
@@ -457,4 +508,8 @@ export async function formatWeeklyMarkdown(program: ValidatedWeeklyProgram): Pro
 
 export function parseLessonPlanInput(body: unknown): LessonPlanInput {
   return LessonPlanInputSchema.parse(body);
+}
+
+export function parseClassPlanInput(body: unknown): ClassPlanRequest {
+  return ClassPlanRequestSchema.parse(body);
 }
