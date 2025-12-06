@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[PDF] ${requestId} error`, error);
     const payload: Record<string, unknown> = {
-      error: 'No se pudo generar el PDF.',
+      error: 'Unable to generate PDF.',
       code: 'export-failed',
       requestId,
     };

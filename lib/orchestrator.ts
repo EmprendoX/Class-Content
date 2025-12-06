@@ -1,127 +1,44 @@
-import {
-  generateCampaignBlueprint,
-  generateLinkedInPostCopy,
-  generateVideoScriptForPost,
-  formatCampaignMarkdown,
-} from './llm';
+import { formatWeeklyMarkdown, generateWeeklyProgram } from './llm';
 import { markdownToHtml } from './markdown';
-import type {
-  CampaignInput,
-  LinkedInCampaignOutput,
-  CampaignBlueprint,
-  CampaignPostWithVideo,
-  LinkedInPost,
-} from './schemas';
+import type { LessonPlanInput, LessonProgramResponse } from './schemas';
 
-export type GenerationStage = 'ideation' | 'posts' | 'video' | 'format';
+export type GenerationStage = 'outline' | 'validate' | 'format' | null;
 
-export async function generateLinkedInCampaign(
-  input: CampaignInput,
+export async function buildWeeklyLessonProgram(
+  input: LessonPlanInput,
   options?: {
     onStage?: (stage: GenerationStage, payload?: Record<string, unknown>) => void;
   }
-): Promise<LinkedInCampaignOutput> {
+): Promise<LessonProgramResponse> {
   const onStage = options?.onStage;
-  onStage?.('ideation', { status: 'started' });
 
-  const blueprint: CampaignBlueprint = await generateCampaignBlueprint(input);
+  onStage?.('outline', { status: 'started' });
+  const structured = await generateWeeklyProgram(input);
+  onStage?.('outline', { status: 'completed', lessons: structured.lessons.length });
 
-  onStage?.('ideation', {
-    status: 'completed',
-    angles: blueprint.angles.length,
-    campaignTitle: blueprint.campaignTitle,
+  onStage?.('validate', {
+    status: structured.validation.blockingIssues.length ? 'failed' : 'completed',
+    issues: structured.validation.blockingIssues,
   });
 
-  onStage?.('posts', {
-    status: 'started',
-    completed: 0,
-    total: blueprint.angles.length,
-  });
-
-  const postCopies: LinkedInPost[] = [];
-  let postsCompleted = 0;
-
-  for (const angle of blueprint.angles) {
-    const postCopy = await generateLinkedInPostCopy(blueprint, angle.id, input);
-
-    postCopies.push(postCopy);
-    postsCompleted += 1;
-
-    onStage?.('posts', {
-      status: 'progress',
-      completed: postsCompleted,
-      total: blueprint.angles.length,
-      angleId: angle.id,
-    });
+  if (structured.validation.blockingIssues.length) {
+    throw new Error(structured.validation.blockingIssues.join(' | '));
   }
-
-  onStage?.('posts', {
-    status: 'completed',
-    completed: blueprint.angles.length,
-    total: blueprint.angles.length,
-  });
-
-  onStage?.('video', {
-    status: 'started',
-    completed: 0,
-    total: postCopies.length,
-  });
-
-  const postsWithVideo: CampaignPostWithVideo[] = [];
-  let videosCompleted = 0;
-
-  for (const post of postCopies) {
-    const videoScript = await generateVideoScriptForPost(blueprint, post, input);
-
-    postsWithVideo.push({
-      ...post,
-      videoScript,
-    });
-
-    videosCompleted += 1;
-
-    onStage?.('video', {
-      status: 'progress',
-      completed: videosCompleted,
-      total: postCopies.length,
-      angleId: post.angleId,
-    });
-  }
-
-  onStage?.('video', {
-    status: 'completed',
-    completed: postCopies.length,
-    total: postCopies.length,
-  });
 
   onStage?.('format', { status: 'started' });
-
-  const formattedMarkdown = await formatCampaignMarkdown({
-    blueprint,
-    posts: postsWithVideo,
-    input,
-  });
-
-  const html = markdownToHtml(formattedMarkdown);
-
+  const markdown = await formatWeeklyMarkdown(structured);
+  const html = markdownToHtml(markdown);
   onStage?.('format', { status: 'completed' });
 
   return {
-    campaignTitle: blueprint.campaignTitle,
-    toneRecipe: blueprint.toneRecipe,
-    hookPrinciples: blueprint.hookPrinciples,
-    angles: blueprint.angles,
-    posts: postsWithVideo,
-    markdown: formattedMarkdown,
+    ...structured,
+    markdown,
     html,
     meta: {
-      mainTheme: input.mainTheme,
-      audienceProfile: input.audienceProfile,
-      campaignGoal: input.campaignGoal,
-      brandVoice: input.brandVoice,
-      callToAction: input.callToAction,
-      offerDescription: input.offerDescription,
-      contextNotes: input.contextNotes,
+      subjectArea: input.subjectArea,
+      gradeLevel: input.gradeLevel,
+      learnerProfile: input.learnerProfile,
+      constraints: input.constraints,
       generatedAt: new Date().toISOString(),
     },
   };

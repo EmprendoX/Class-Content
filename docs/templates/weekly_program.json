@@ -1,0 +1,105 @@
+{
+  "weeklyTheme": "Exploring Ecosystems",
+  "overview": "Learners investigate how living and nonliving parts of an ecosystem connect through observation, modeling, and reflection.",
+  "template": {
+    "lesson": "Objectives, materials, constructivist phases (prior knowledge, exploration, concept building, reflection), critical questions, assessment, pedagogy flags"
+  },
+  "lessons": [
+    {
+      "title": "Lesson 1: What is an ecosystem?",
+      "objectives": [
+        "Define ecosystem and identify living/nonliving parts",
+        "Explain how organisms depend on their environment"
+      ],
+      "materials": ["Chart paper", "Sticky notes", "Nature photo set"],
+      "activities": {
+        "prior_knowledge": "Students list nature spots they know and what lives there.",
+        "exploration": "Gallery walk of ecosystem photos; learners choose one to observe closely.",
+        "concept_building": "Facilitator models a simple system map connecting organisms and resources.",
+        "reflection": "Students self-correct their maps using a peer checklist and discuss one insight."
+      },
+      "critical_questions": [
+        "What evidence shows these parts interact?",
+        "How would the system change if one element was removed?"
+      ],
+      "assessment": "Observation notes plus a quick exit ticket defining ecosystem in their own words.",
+      "pedagogy_flags": {
+        "montessori": { "choice": true, "hands_on": true, "self_paced": true, "self_correction": true },
+        "constructivist": { "link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true },
+        "critical": { "open_questions": true, "evidence_based_claims": true, "peer_discussion": true }
+      }
+    },
+    {
+      "title": "Lesson 2: Energy flows",
+      "objectives": ["Describe producers and consumers", "Model a simple food chain"],
+      "materials": ["Picture cards", "String", "Clip magnets"],
+      "activities": {
+        "prior_knowledge": "Recall what plants need to grow and how animals eat.",
+        "exploration": "Students arrange cards to show who eats what; they choose which cards to include.",
+        "concept_building": "Facilitator introduces energy arrows and guides groups to revise their chains.",
+        "reflection": "Learners journal how energy moves and self-correct with an answer key."
+      },
+      "critical_questions": ["What evidence shows energy is transferred?", "Where could this chain break?"] ,
+      "assessment": "Quick sketch of a food chain with labels plus peer feedback.",
+      "pedagogy_flags": {
+        "montessori": { "choice": true, "hands_on": true, "self_paced": true, "self_correction": true },
+        "constructivist": { "link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true },
+        "critical": { "open_questions": true, "evidence_based_claims": true, "peer_discussion": true }
+      }
+    },
+    {
+      "title": "Lesson 3: Interdependence",
+      "objectives": ["Explain mutual needs among organisms", "Identify evidence of collaboration in nature"],
+      "materials": ["Clay", "Craft sticks", "Reference cards"],
+      "activities": {
+        "prior_knowledge": "Students recall examples of animals helping each other.",
+        "exploration": "Pairs build a simple 3D model showing two organisms interacting.",
+        "concept_building": "Facilitator prompts evidence statements and guides refinement.",
+        "reflection": "Students compare models and self-correct using rubric icons."
+      },
+      "critical_questions": ["How do both organisms benefit?", "What evidence shows this relationship is balanced?"],
+      "assessment": "Peer discussion plus a short written claim with evidence.",
+      "pedagogy_flags": {
+        "montessori": { "choice": true, "hands_on": true, "self_paced": true, "self_correction": true },
+        "constructivist": { "link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true },
+        "critical": { "open_questions": true, "evidence_based_claims": true, "peer_discussion": true }
+      }
+    },
+    {
+      "title": "Lesson 4: Human impact",
+      "objectives": ["Identify positive and negative human impacts", "Propose one restoration action"],
+      "materials": ["Case study cards", "Sticky notes", "Color markers"],
+      "activities": {
+        "prior_knowledge": "Students list ways people change a park or garden.",
+        "exploration": "Groups rotate through case study cards to find evidence of impact.",
+        "concept_building": "Class builds a T-chart of helpful vs harmful actions with guided discussion.",
+        "reflection": "Each learner drafts a personal action plan and self-corrects with rubric prompts."
+      },
+      "critical_questions": ["Which evidence is strongest?", "How could this action affect other parts of the system?"],
+      "assessment": "Exit ticket proposing one evidence-based action.",
+      "pedagogy_flags": {
+        "montessori": { "choice": true, "hands_on": true, "self_paced": true, "self_correction": true },
+        "constructivist": { "link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true },
+        "critical": { "open_questions": true, "evidence_based_claims": true, "peer_discussion": true }
+      }
+    },
+    {
+      "title": "Lesson 5: Showcase and reflect",
+      "objectives": ["Synthesize learning into a system model", "Reflect on growth as a scientist"],
+      "materials": ["Poster board", "Markers", "Reflection journals"],
+      "activities": {
+        "prior_knowledge": "Students revisit their first ecosystem map.",
+        "exploration": "Teams redesign their map with new evidence and choose materials.",
+        "concept_building": "Facilitator prompts links between energy, organisms, and human actions.",
+        "reflection": "Learners conduct a gallery walk, self-correct with checklists, and note next steps."
+      },
+      "critical_questions": ["How did your model change and why?", "What evidence would strengthen it?"],
+      "assessment": "Observation notes and a short reflection entry scored with the class checklist.",
+      "pedagogy_flags": {
+        "montessori": { "choice": true, "hands_on": true, "self_paced": true, "self_correction": true },
+        "constructivist": { "link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true },
+        "critical": { "open_questions": true, "evidence_based_claims": true, "peer_discussion": true }
+      }
+    }
+  ]
+}

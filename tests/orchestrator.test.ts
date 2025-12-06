@@ -1,115 +1,92 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateLinkedInCampaign } from '@/lib/orchestrator';
+import { buildWeeklyLessonProgram } from '@/lib/orchestrator';
 import type {
-  CampaignInput,
-  CampaignBlueprint,
-  LinkedInPost,
-  VideoScript,
-  CampaignPostWithVideo,
+  LessonPlanInput,
+  LessonPlanWithValidation,
+  ValidatedWeeklyProgram,
 } from '@/lib/schemas';
 
-const makeBlueprint = (): CampaignBlueprint => ({
-  campaignTitle: 'Demo Campaign: Escalar ventas B2B con IA',
-  toneRecipe: 'Confianza en primera persona, ritmo rápido, storytelling con datos verificados.',
-  hookPrinciples: ['Arranca con tensión', 'Usa números concretos', 'Cierra con comunidad'],
-  angles: [1, 2, 3, 4, 5].map((id) => ({
-    id,
-    title: `Ángulo ${id}`,
-    promise: `Promesa ${id}`,
-    postType: id % 2 === 0 ? 'framework' : 'story',
-    keyPoints: [`Idea ${id}-1`, `Idea ${id}-2`, `Idea ${id}-3`],
-    whyItWorks: `Porque conecta con dolor ${id}.`,
-  })),
+const baseLessonValidation = {
+  englishOnly: true,
+  hasObjectives: true,
+  hasMaterials: true,
+  hasActivities: true,
+  hasCriticalQuestions: true,
+  montessoriComplete: true,
+  constructivistComplete: true,
+  criticalThinkingComplete: true,
+  issues: [],
+};
+
+const makeLesson = (title: string): LessonPlanWithValidation => ({
+  title,
+  objectives: ['Objective 1', 'Objective 2'],
+  materials: ['Material 1', 'Material 2'],
+  activities: {
+    prior_knowledge: 'Recall prior learning.',
+    exploration: 'Explore with manipulatives.',
+    concept_building: 'Connect findings to the big idea.',
+    reflection: 'Reflect and self-correct with a peer.',
+  },
+  critical_questions: ['What evidence supports your idea?', 'How could this change in a new context?'],
+  assessment: 'Observation notes and quick exit ticket.',
+  pedagogy_flags: {
+    montessori: { choice: true, hands_on: true, self_paced: true, self_correction: true },
+    constructivist: { link_to_prior_knowledge: true, guided_discovery: true, social_interaction: true },
+    critical: { open_questions: true, evidence_based_claims: true, peer_discussion: true },
+  },
+  validation: baseLessonValidation,
 });
 
-const makePost = (angleId: number): LinkedInPost => ({
-  angleId,
-  angleTitle: `Ángulo ${angleId}`,
-  headline: `Headline ${angleId}`,
-  hook: `Hook ${angleId}`,
-  copyMarkdown: `Hook ${angleId}\n\nCuerpo ${angleId}.`,
-  keyTakeaway: `Insight ${angleId}`,
-  callToAction: `CTA ${angleId}`,
-  hashtags: ['growth', 'linkedin', `angle${angleId}`],
-});
-
-const makeVideoScript = (angleId: number): VideoScript => ({
-  angleId,
-  title: `Video ${angleId}`,
-  hook: `Video hook ${angleId}`,
-  duration: '0:55',
-  beats: [1, 2, 3, 4, 5].map((order) => ({
-    order,
-    shot: `Shot ${order}`,
-    voiceOver: `Voice ${order}`,
-    onScreenText: order % 2 === 0 ? `Texto ${order}` : '',
-    cameraDirection: 'Plano medio dinámico',
-  })),
-  closing: `Cierre ${angleId}`,
-  callToAction: `CTA video ${angleId}`,
-});
-
-const fakeBlueprint = makeBlueprint();
+const validatedProgram: ValidatedWeeklyProgram = {
+  weeklyTheme: 'Exploring Ecosystems',
+  overview: 'Learners explore ecosystems through hands-on investigations and reflection.',
+  template: { lesson: 'Objectives, materials, constructivist phases, critical questions, assessment, checklists' },
+  lessons: [makeLesson('Lesson 1'), makeLesson('Lesson 2'), makeLesson('Lesson 3'), makeLesson('Lesson 4'), makeLesson('Lesson 5')],
+  validation: {
+    englishOnly: true,
+    lessonsPassed: 5,
+    totalLessons: 5,
+    blockingIssues: [],
+  },
+};
 
 vi.mock('@/lib/llm', () => ({
-  generateCampaignBlueprint: vi.fn(async () => fakeBlueprint),
-  generateLinkedInPostCopy: vi.fn(async (_blueprint: CampaignBlueprint, angleId: number) =>
-    makePost(angleId)
-  ),
-  generateVideoScriptForPost: vi.fn(async (_blueprint: CampaignBlueprint, post: LinkedInPost) =>
-    makeVideoScript(post.angleId)
-  ),
-  formatCampaignMarkdown: vi.fn(async ({ posts }: { posts: CampaignPostWithVideo[] }) => {
-    return `# Demo Campaign\n\nTotal posts: ${posts.length}`;
-  }),
+  generateWeeklyProgram: vi.fn(async () => validatedProgram),
+  formatWeeklyMarkdown: vi.fn(async () => '# Weekly Plan\n\n- Objectives'),
 }));
 
-describe('generateLinkedInCampaign', () => {
+describe('buildWeeklyLessonProgram', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('ensambla la campaña y comunica el progreso por etapas', async () => {
-    const input: CampaignInput = {
-      mainTheme: 'Transformación digital con IA en empresas B2B',
-      audienceProfile: 'CEOs de SaaS en crecimiento (Series A-B)',
-      campaignGoal: 'Generar 30 demos calificadas en 30 días',
-      brandVoice: 'Directo, basado en datos, cero humo',
-      callToAction: 'Escríbeme «IA» y agendamos una sesión privada',
-      offerDescription: 'Programa de aceleración comercial 1:1',
-      contextNotes: 'Competimos contra consultoras tradicionales. Tenemos caso de éxito con FinTech X.',
+  it('assembles the weekly plan, attaches meta, and emits stage updates', async () => {
+    const input: LessonPlanInput = {
+      weeklyTheme: 'Exploring Ecosystems',
+      subjectArea: 'Science',
+      gradeLevel: 'Upper Elementary',
+      learnerProfile: 'Curious experimenters',
+      constraints: 'Recycled materials preferred',
     };
 
-    const stages: Array<{ stage: string; status?: string; completed?: number }> = [];
+    const stages: Array<{ stage: string; status?: string }> = [];
 
-    const campaign = await generateLinkedInCampaign(input, {
+    const program = await buildWeeklyLessonProgram(input, {
       onStage(stage, payload) {
-        stages.push({
-          stage,
-          status: payload?.status as string | undefined,
-          completed: payload?.completed as number | undefined,
-        });
+        stages.push({ stage, status: (payload as { status?: string })?.status });
       },
     });
 
-    expect(campaign.campaignTitle).toBe(fakeBlueprint.campaignTitle);
-    expect(campaign.posts).toHaveLength(5);
-    expect(campaign.posts[0].videoScript.beats.length).toBeGreaterThan(0);
-    expect(campaign.markdown).toContain('Total posts: 5');
-    expect(campaign.meta.mainTheme).toBe(input.mainTheme);
-    expect(campaign.meta.callToAction).toBe(input.callToAction);
+    expect(program.weeklyTheme).toBe(validatedProgram.weeklyTheme);
+    expect(program.lessons).toHaveLength(5);
+    expect(program.meta.subjectArea).toBe(input.subjectArea);
+    expect(program.meta.gradeLevel).toBe(input.gradeLevel);
+    expect(program.markdown).toContain('# Weekly Plan');
+    expect(program.html).toContain('<h1');
 
-    const stageNames = stages.map((event) => event.stage);
-    expect(stageNames.filter((name) => name === 'ideation')).toHaveLength(2);
-    expect(stageNames.filter((name) => name === 'posts').length).toBeGreaterThanOrEqual(2);
-    expect(stageNames.filter((name) => name === 'video').length).toBeGreaterThanOrEqual(2);
-    expect(stageNames).toContain('format');
-
-    expect(
-      stages.find((event) => event.stage === 'posts' && event.status === 'completed')?.completed
-    ).toBe(5);
-    expect(
-      stages.find((event) => event.stage === 'video' && event.status === 'completed')?.completed
-    ).toBe(5);
+    const stageOrder = stages.map((entry) => entry.stage);
+    expect(stageOrder).toEqual(['outline', 'outline', 'validate', 'format', 'format']);
+    expect(stages.find((event) => event.stage === 'validate')?.status).toBe('completed');
   });
 });

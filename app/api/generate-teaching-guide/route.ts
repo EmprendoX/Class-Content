@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
-import { generateLinkedInCampaign } from '@/lib/orchestrator';
-import { LLMServiceError } from '@/lib/llm';
-import { CampaignInputSchema } from '@/lib/schemas';
-import type { CampaignInput } from '@/lib/schemas';
+import { buildWeeklyLessonProgram } from '@/lib/orchestrator';
+import { LLMServiceError, parseLessonPlanInput } from '@/lib/llm';
+import type { LessonPlanInput } from '@/lib/schemas';
 
 export async function POST(request: NextRequest) {
   const requestId = randomUUID();
@@ -11,15 +10,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    console.info(`[LinkedInCampaign] ${requestId} received payload`);
-    console.debug(`[LinkedInCampaign] ${requestId} body`, body);
+    console.info(`[WeeklyLessonPlan] ${requestId} received payload`);
+    console.debug(`[WeeklyLessonPlan] ${requestId} body`, body);
 
-    let validatedInput: CampaignInput;
+    let validatedInput: LessonPlanInput;
     try {
-      validatedInput = CampaignInputSchema.parse(body);
-      console.info(`[LinkedInCampaign] ${requestId} validation succeeded`);
+      validatedInput = parseLessonPlanInput(body);
+      console.info(`[WeeklyLessonPlan] ${requestId} validation succeeded`);
     } catch (validationError) {
-      console.error(`[LinkedInCampaign] ${requestId} validation failed`, validationError);
+      console.error(`[WeeklyLessonPlan] ${requestId} validation failed`, validationError);
 
       if (validationError && typeof validationError === 'object' && 'issues' in validationError) {
         const zodError = validationError as {
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
     const wantsStream = request.headers.get('accept')?.includes('text/event-stream');
 
     if (wantsStream) {
-      console.info(`[LinkedInCampaign] ${requestId} streaming generation started`);
+      console.info(`[WeeklyLessonPlan] ${requestId} streaming generation started`);
       const encoder = new TextEncoder();
 
       const stream = new ReadableStream({
@@ -77,7 +76,7 @@ export async function POST(request: NextRequest) {
           };
 
           try {
-            const campaign = await generateLinkedInCampaign(validatedInput, {
+            const program = await buildWeeklyLessonProgram(validatedInput, {
               onStage: (stage, payload) => {
                 send('status', {
                   stage,
@@ -87,17 +86,17 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            send('complete', { campaign, requestId });
+            send('complete', { program, requestId });
             console.info(
-              `[LinkedInCampaign] ${requestId} streaming generation completed in ${Date.now() - startedAt}ms`
+              `[WeeklyLessonPlan] ${requestId} streaming generation completed in ${Date.now() - startedAt}ms`
             );
           } catch (err) {
-            console.error(`[LinkedInCampaign] ${requestId} streaming generation failed`, err);
+            console.error(`[WeeklyLessonPlan] ${requestId} streaming generation failed`, err);
 
             if (err instanceof LLMServiceError) {
               send('error', {
                 error:
-                  'El servicio de IA no pudo completar la campaña. Intenta nuevamente en unos minutos.',
+                  'The AI service could not complete the lesson plan. Please try again in a few minutes.',
                 code: err.code,
                 details: process.env.NODE_ENV !== 'production' ? err.message : undefined,
                 requestId,
@@ -109,7 +108,7 @@ export async function POST(request: NextRequest) {
               });
             } else {
               send('error', {
-                error: 'No se pudo generar la campaña.',
+                error: 'The lesson plan could not be generated.',
                 requestId,
               });
             }
@@ -118,7 +117,7 @@ export async function POST(request: NextRequest) {
           }
         },
         cancel() {
-          console.warn(`[LinkedInCampaign] ${requestId} stream cancelled by client`);
+          console.warn(`[WeeklyLessonPlan] ${requestId} stream cancelled by client`);
         },
       });
 
@@ -131,19 +130,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.info(`[LinkedInCampaign] ${requestId} generation started`);
-    const campaign = await generateLinkedInCampaign(validatedInput);
+    console.info(`[WeeklyLessonPlan] ${requestId} generation started`);
+    const program = await buildWeeklyLessonProgram(validatedInput);
     console.info(
-      `[LinkedInCampaign] ${requestId} generation completed in ${Date.now() - startedAt}ms`
+      `[WeeklyLessonPlan] ${requestId} generation completed in ${Date.now() - startedAt}ms`
     );
 
-    return NextResponse.json(campaign, { status: 200 });
+    return NextResponse.json(program, { status: 200 });
   } catch (error) {
-    console.error(`[LinkedInCampaign] ${requestId} generation failed`, error);
+    console.error(`[WeeklyLessonPlan] ${requestId} generation failed`, error);
 
     if (error instanceof LLMServiceError) {
       const responseBody: Record<string, unknown> = {
-        error: 'El servicio de IA no pudo completar la campaña. Intenta nuevamente en unos minutos.',
+        error: 'The AI service could not complete the lesson plan. Please try again in a few minutes.',
         code: error.code,
         requestId,
       };
@@ -161,7 +160,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       return NextResponse.json(
         {
-          error: 'No se pudo generar la campaña.',
+          error: 'The lesson plan could not be generated.',
           details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
           requestId,
         },
@@ -171,7 +170,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: 'No se pudo generar la campaña.',
+        error: 'The lesson plan could not be generated.',
         requestId,
       },
       { status: 500 }

@@ -1,101 +1,110 @@
 import { describe, it, expect } from 'vitest';
 import {
-  CampaignInputSchema,
-  CampaignBlueprintSchema,
-  LinkedInPostSchema,
-  VideoScriptSchema,
+  LessonPlanInputSchema,
+  LessonPlanSchema,
+  WeeklyProgramSchema,
+  validateLesson,
+  validateWeeklyProgram,
 } from '@/lib/schemas';
 
-describe('CampaignInputSchema', () => {
-  it('recorta campos opcionales y permite dejar vacíos', () => {
-    const result = CampaignInputSchema.parse({
-      mainTheme: '  IA aplicada en ventas  ',
-      audienceProfile: '  Fundadores de SaaS  ',
-      campaignGoal: '  Abrir 20 demos  ',
-      brandVoice: '  ',
-      callToAction: '',
-      offerDescription: '  ',
-      contextNotes: 'Casos de éxito en Latam',
+const basePedagogyFlags = {
+  montessori: { choice: true, hands_on: true, self_paced: true, self_correction: true },
+  constructivist: { link_to_prior_knowledge: true, guided_discovery: true, social_interaction: true },
+  critical: { open_questions: true, evidence_based_claims: true, peer_discussion: true },
+};
+
+const makeLesson = (title: string) => ({
+  title,
+  objectives: ['Identify patterns', 'Build evidence-based claims'],
+  materials: ['Journal', 'Science kit'],
+  activities: {
+    prior_knowledge: 'Students recall prior experiments with plants.',
+    exploration: 'Small groups build terrariums with learner choice of materials.',
+    concept_building: 'Facilitator guides learners to connect observations to ecosystems.',
+    reflection: 'Learners self-correct using a checklist and share takeaways.',
+  },
+  critical_questions: ['How does evidence change your claim?', 'What patterns do you observe?'],
+  assessment: 'Observation notes plus a quick exit ticket.',
+  pedagogy_flags: basePedagogyFlags,
+});
+
+describe('LessonPlanInputSchema', () => {
+  it('trims optional values and enforces English content', () => {
+    const result = LessonPlanInputSchema.parse({
+      weeklyTheme: '  Exploring Ecosystems ',
+      subjectArea: ' Science ',
+      gradeLevel: ' Upper Elementary ',
+      learnerProfile: '  Curious learners who enjoy hands-on labs  ',
+      constraints: '  Low-cost materials only  ',
     });
 
-    expect(result.mainTheme).toBe('IA aplicada en ventas');
-    expect(result.brandVoice).toBeUndefined();
-    expect(result.callToAction).toBeUndefined();
-    expect(result.offerDescription).toBeUndefined();
-    expect(result.contextNotes).toBe('Casos de éxito en Latam');
+    expect(result.weeklyTheme).toBe('Exploring Ecosystems');
+    expect(result.constraints).toBe('Low-cost materials only');
   });
 
-  it('rechaza faltantes obligatorios', () => {
+  it('rejects non-English characters', () => {
     expect(() =>
-      CampaignInputSchema.parse({
-        mainTheme: '',
-        audienceProfile: '',
-        campaignGoal: '',
+      LessonPlanInputSchema.parse({
+        weeklyTheme: 'Energía y materia',
+        subjectArea: 'Science',
+        gradeLevel: 'Upper',
       })
     ).toThrow();
   });
 });
 
-describe('Campaign blueprint schema', () => {
-  it('valida que existan exactamente 5 ángulos', () => {
+describe('Lesson and weekly schemas', () => {
+  it('requires Montessori/constructivist/critical-thinking flags to be true', () => {
     expect(() =>
-      CampaignBlueprintSchema.parse({
-        campaignTitle: 'Demo',
-        toneRecipe: 'Directo',
-        hookPrinciples: ['Gancho'],
-        angles: [
-          {
-            id: 1,
-            title: 'Uno',
-            promise: 'Promesa',
-            postType: 'story',
-            keyPoints: ['A', 'B', 'C'],
-            whyItWorks: 'Porque sí',
-          },
-        ],
+      LessonPlanSchema.parse({
+        ...makeLesson('Lesson 1'),
+        pedagogy_flags: {
+          ...basePedagogyFlags,
+          montessori: { ...basePedagogyFlags.montessori, hands_on: false },
+        },
       })
     ).toThrow();
   });
-});
 
-describe('LinkedInPostSchema', () => {
-  it('limita hashtags y mantiene el markdown del post', () => {
-    const post = LinkedInPostSchema.parse({
-      angleId: 1,
-      angleTitle: 'Ángulo',
-      headline: 'Headline',
-      hook: 'Hook',
-      copyMarkdown: 'Hook\n\nCuerpo',
-      keyTakeaway: 'Insight',
-      callToAction: 'CTA',
-      hashtags: ['uno', 'dos', 'tres'],
+  it('validates weekly program length and English-only output', () => {
+    const weeklyProgram = WeeklyProgramSchema.parse({
+      weeklyTheme: 'Forces and Motion',
+      overview: 'Learners explore motion with hands-on investigations.',
+      template: { lesson: 'Objectives, materials, activities, questions, assessment, checklists' },
+      lessons: [0, 1, 2, 3, 4].map((idx) => makeLesson(`Lesson ${idx + 1}`)),
     });
 
-    expect(post.hashtags).toHaveLength(3);
-    expect(post.copyMarkdown).toContain('Cuerpo');
+    expect(weeklyProgram.lessons).toHaveLength(5);
+    expect(weeklyProgram.weeklyTheme).toBe('Forces and Motion');
   });
 });
 
-describe('VideoScriptSchema', () => {
-  it('requiere al menos tres beats', () => {
-    expect(() =>
-      VideoScriptSchema.parse({
-        angleId: 1,
-        title: 'Video',
-        hook: 'Hook',
-        duration: '0:45',
-        beats: [
-          {
-            order: 1,
-            shot: 'Shot',
-            voiceOver: 'VO',
-            onScreenText: '',
-            cameraDirection: 'Plano medio',
-          },
-        ],
-        closing: 'Cierre',
-        callToAction: 'CTA',
-      })
-    ).toThrow();
+describe('Validation helpers', () => {
+  it('flags missing checklists or required sections', () => {
+    const lesson = {
+      ...makeLesson('Lesson with gaps'),
+      materials: [],
+      pedagogy_flags: {
+        ...basePedagogyFlags,
+        critical: { open_questions: true, evidence_based_claims: false, peer_discussion: true },
+      },
+    };
+
+    const validation = validateLesson(lesson);
+    expect(validation.hasMaterials).toBe(false);
+    expect(validation.criticalThinkingComplete).toBe(false);
+    expect(validation.issues.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('summarizes weekly validation state', () => {
+    const weeklyProgram = validateWeeklyProgram({
+      weeklyTheme: 'Light and Shadow',
+      overview: 'Investigate how light travels and how shadows form.',
+      template: { lesson: 'Reusable lesson template' },
+      lessons: [makeLesson('L1'), makeLesson('L2'), makeLesson('L3'), makeLesson('L4'), makeLesson('L5')],
+    });
+
+    expect(weeklyProgram.validation.lessonsPassed).toBe(5);
+    expect(weeklyProgram.validation.blockingIssues).toHaveLength(0);
   });
 });

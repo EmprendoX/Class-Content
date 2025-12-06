@@ -1,116 +1,225 @@
 import { z } from 'zod';
 
+const isEnglish = (value: string) => !/[áéíóúÁÉÍÓÚñÑ¿¡]/.test(value);
+
 const trimValue = <T>(schema: z.ZodType<T>) =>
   z.preprocess((val) => (typeof val === 'string' ? val.trim() : val), schema);
 
-const optionalTrimmedString = z.preprocess(
-  (val) => {
-    if (val === undefined || val === null) return undefined;
-    if (typeof val === 'string') {
-      const trimmed = val.trim();
-      return trimmed.length ? trimmed : undefined;
-    }
-    return val;
-  },
-  z.string().optional()
-);
-
-const requiredTrimmedString = trimValue(z.string().min(1));
-
-export const CampaignInputSchema = z.object({
-  mainTheme: requiredTrimmedString,
-  audienceProfile: requiredTrimmedString,
-  campaignGoal: requiredTrimmedString,
-  brandVoice: optionalTrimmedString,
-  callToAction: optionalTrimmedString,
-  offerDescription: optionalTrimmedString,
-  contextNotes: optionalTrimmedString,
+const requiredEnglishString = trimValue(z.string().min(1)).refine(isEnglish, {
+  message: 'Content must be in English and avoid accented characters.',
 });
 
-export type CampaignInput = z.infer<typeof CampaignInputSchema>;
+const optionalEnglishString = z
+  .preprocess(
+    (val) => {
+      if (val === undefined || val === null) return undefined;
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        return trimmed.length ? trimmed : undefined;
+      }
+      return val;
+    },
+    z.string().optional()
+  )
+  .refine((val) => val === undefined || isEnglish(val), {
+    message: 'Optional content must be in English.',
+  });
 
-export const CampaignAngleSchema = z.object({
-  id: z.number().int().min(1),
-  title: trimValue(z.string().min(1)),
-  promise: trimValue(z.string().min(1)),
-  postType: trimValue(z.string().min(1)),
-  keyPoints: z.array(trimValue(z.string().min(1))).min(2),
-  whyItWorks: trimValue(z.string().min(1)),
+export const LessonPlanInputSchema = z.object({
+  weeklyTheme: requiredEnglishString,
+  subjectArea: requiredEnglishString,
+  gradeLevel: requiredEnglishString,
+  learnerProfile: optionalEnglishString,
+  constraints: optionalEnglishString,
 });
 
-export type CampaignAngle = z.infer<typeof CampaignAngleSchema>;
+export type LessonPlanInput = z.infer<typeof LessonPlanInputSchema>;
 
-export const CampaignBlueprintSchema = z.object({
-  campaignTitle: trimValue(z.string().min(1)),
-  toneRecipe: trimValue(z.string().min(1)),
-  hookPrinciples: z.array(trimValue(z.string().min(1))).min(1),
-  angles: z.array(CampaignAngleSchema).length(5, {
-    message: 'Se requieren exactamente 5 ángulos para la campaña.',
+const LessonActivitiesSchema = z.object({
+  prior_knowledge: requiredEnglishString,
+  exploration: requiredEnglishString,
+  concept_building: requiredEnglishString,
+  reflection: requiredEnglishString,
+});
+
+const PedagogyFlagsSchema = z.object({
+  montessori: z.object({
+    choice: z.boolean(),
+    hands_on: z.boolean(),
+    self_paced: z.boolean(),
+    self_correction: z.boolean(),
+  }),
+  constructivist: z.object({
+    link_to_prior_knowledge: z.boolean(),
+    guided_discovery: z.boolean(),
+    social_interaction: z.boolean(),
+  }),
+  critical: z.object({
+    open_questions: z.boolean(),
+    evidence_based_claims: z.boolean(),
+    peer_discussion: z.boolean(),
   }),
 });
 
-export type CampaignBlueprint = z.infer<typeof CampaignBlueprintSchema>;
+export const LessonPlanSchema = z
+  .object({
+    title: requiredEnglishString,
+    objectives: z.array(requiredEnglishString).min(1),
+    materials: z.array(requiredEnglishString).min(1),
+    activities: LessonActivitiesSchema,
+    critical_questions: z.array(requiredEnglishString).min(1),
+    assessment: requiredEnglishString,
+    pedagogy_flags: PedagogyFlagsSchema,
+  })
+  .refine((lesson) => lesson.pedagogy_flags.montessori.choice, {
+    message: 'Montessori choice flag must be true.',
+    path: ['pedagogy_flags', 'montessori', 'choice'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.montessori.hands_on, {
+    message: 'Montessori hands_on flag must be true.',
+    path: ['pedagogy_flags', 'montessori', 'hands_on'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.constructivist.link_to_prior_knowledge, {
+    message: 'Constructivist prior knowledge flag must be true.',
+    path: ['pedagogy_flags', 'constructivist', 'link_to_prior_knowledge'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.critical.open_questions, {
+    message: 'Critical thinking open questions flag must be true.',
+    path: ['pedagogy_flags', 'critical', 'open_questions'],
+  });
 
-export const LinkedInPostSchema = z.object({
-  angleId: z.number().int().min(1),
-  angleTitle: trimValue(z.string().min(1)),
-  headline: trimValue(z.string().min(1)),
-  hook: trimValue(z.string().min(1)),
-  copyMarkdown: trimValue(z.string().min(1)),
-  keyTakeaway: trimValue(z.string().min(1)),
-  callToAction: trimValue(z.string().min(1)),
-  hashtags: z.array(trimValue(z.string().min(1))).min(1).max(6),
-});
+export type LessonPlan = z.infer<typeof LessonPlanSchema>;
 
-export type LinkedInPost = z.infer<typeof LinkedInPostSchema>;
-
-export const VideoBeatSchema = z.object({
-  order: z.number().int().min(1),
-  shot: trimValue(z.string().min(1)),
-  voiceOver: trimValue(z.string().min(1)),
-  onScreenText: optionalTrimmedString.default(''),
-  cameraDirection: trimValue(z.string().min(1)),
-});
-
-export type VideoBeat = z.infer<typeof VideoBeatSchema>;
-
-export const VideoScriptSchema = z.object({
-  angleId: z.number().int().min(1),
-  title: trimValue(z.string().min(1)),
-  hook: trimValue(z.string().min(1)),
-  duration: trimValue(z.string().min(1)),
-  beats: z.array(VideoBeatSchema).min(3),
-  closing: trimValue(z.string().min(1)),
-  callToAction: trimValue(z.string().min(1)),
-});
-
-export type VideoScript = z.infer<typeof VideoScriptSchema>;
-
-export const CampaignPostWithVideoSchema = LinkedInPostSchema.extend({
-  videoScript: VideoScriptSchema,
-});
-
-export type CampaignPostWithVideo = z.infer<typeof CampaignPostWithVideoSchema>;
-
-export const LinkedInCampaignOutputSchema = z.object({
-  campaignTitle: trimValue(z.string().min(1)),
-  toneRecipe: trimValue(z.string().min(1)),
-  hookPrinciples: z.array(trimValue(z.string().min(1))),
-  angles: z.array(CampaignAngleSchema),
-  posts: z.array(CampaignPostWithVideoSchema),
-  markdown: z.string(),
-  html: z.string(),
-  meta: z.object({
-    mainTheme: z.string(),
-    audienceProfile: z.string(),
-    campaignGoal: z.string(),
-    brandVoice: z.string().optional(),
-    callToAction: z.string().optional(),
-    offerDescription: z.string().optional(),
-    contextNotes: z.string().optional(),
-    generatedAt: z.string(),
+export const WeeklyProgramSchema = z.object({
+  weeklyTheme: requiredEnglishString,
+  overview: requiredEnglishString,
+  template: z.object({
+    lesson: requiredEnglishString,
+  }),
+  lessons: z.array(LessonPlanSchema).length(5, {
+    message: 'Weekly program must include exactly 5 lessons.',
   }),
 });
 
-export type LinkedInCampaignOutput = z.infer<typeof LinkedInCampaignOutputSchema>;
+export type WeeklyProgram = z.infer<typeof WeeklyProgramSchema>;
 
+export interface LessonValidationResult {
+  englishOnly: boolean;
+  hasObjectives: boolean;
+  hasMaterials: boolean;
+  hasActivities: boolean;
+  hasCriticalQuestions: boolean;
+  montessoriComplete: boolean;
+  constructivistComplete: boolean;
+  criticalThinkingComplete: boolean;
+  issues: string[];
+}
+
+export interface WeeklyValidationResult {
+  englishOnly: boolean;
+  lessonsPassed: number;
+  totalLessons: number;
+  blockingIssues: string[];
+}
+
+export interface LessonPlanWithValidation extends LessonPlan {
+  validation: LessonValidationResult;
+}
+
+export interface ValidatedWeeklyProgram extends WeeklyProgram {
+  lessons: LessonPlanWithValidation[];
+  validation: WeeklyValidationResult;
+}
+
+export interface LessonProgramMeta {
+  subjectArea: string;
+  gradeLevel: string;
+  learnerProfile?: string;
+  constraints?: string;
+  generatedAt: string;
+}
+
+export type LessonProgramResponse = ValidatedWeeklyProgram & {
+  markdown: string;
+  html: string;
+  meta: LessonProgramMeta;
+};
+
+const hasAllTrue = (obj: Record<string, boolean>) => Object.values(obj).every(Boolean);
+
+export function validateLesson(lesson: LessonPlan): LessonValidationResult {
+  const issues: string[] = [];
+  const englishOnly =
+    isEnglish(lesson.title) &&
+    lesson.objectives.every(isEnglish) &&
+    lesson.materials.every(isEnglish) &&
+    isEnglish(lesson.activities.prior_knowledge) &&
+    isEnglish(lesson.activities.exploration) &&
+    isEnglish(lesson.activities.concept_building) &&
+    isEnglish(lesson.activities.reflection) &&
+    lesson.critical_questions.every(isEnglish) &&
+    isEnglish(lesson.assessment);
+
+  if (!englishOnly) issues.push('Content must remain in English.');
+  if (!lesson.objectives.length) issues.push('Objectives are required.');
+  if (!lesson.materials.length) issues.push('Materials are required.');
+  if (!lesson.critical_questions.length) issues.push('Critical questions are required.');
+
+  const hasActivities = Boolean(
+    lesson.activities.prior_knowledge &&
+      lesson.activities.exploration &&
+      lesson.activities.concept_building &&
+      lesson.activities.reflection
+  );
+
+  if (!hasActivities) issues.push('All constructivist activity phases are required.');
+
+  const montessoriComplete = hasAllTrue(lesson.pedagogy_flags.montessori);
+  const constructivistComplete = hasAllTrue(lesson.pedagogy_flags.constructivist);
+  const criticalThinkingComplete = hasAllTrue(lesson.pedagogy_flags.critical);
+
+  if (!montessoriComplete)
+    issues.push('Montessori checklist must be fully satisfied (choice, hands-on, self-paced, self-correction).');
+  if (!constructivistComplete)
+    issues.push('Constructivist checklist must be fully satisfied (prior knowledge, guided discovery, social interaction).');
+  if (!criticalThinkingComplete)
+    issues.push('Critical-thinking checklist must be fully satisfied (open questions, evidence-based claims, peer discussion).');
+
+  return {
+    englishOnly,
+    hasObjectives: Boolean(lesson.objectives.length),
+    hasMaterials: Boolean(lesson.materials.length),
+    hasActivities,
+    hasCriticalQuestions: Boolean(lesson.critical_questions.length),
+    montessoriComplete,
+    constructivistComplete,
+    criticalThinkingComplete,
+    issues,
+  };
+}
+
+export function validateWeeklyProgram(program: WeeklyProgram): ValidatedWeeklyProgram {
+  const lessonsWithValidation = program.lessons.map((lesson) => ({
+    ...lesson,
+    validation: validateLesson(lesson),
+  }));
+
+  const blockingIssues = lessonsWithValidation
+    .flatMap((lesson, index) => lesson.validation.issues.map((issue) => `Lesson ${index + 1}: ${issue}`));
+
+  const englishOnly =
+    isEnglish(program.weeklyTheme) &&
+    isEnglish(program.overview) &&
+    lessonsWithValidation.every((lesson) => lesson.validation.englishOnly);
+
+  return {
+    ...program,
+    lessons: lessonsWithValidation,
+    validation: {
+      englishOnly,
+      lessonsPassed: lessonsWithValidation.filter((lesson) => lesson.validation.issues.length === 0).length,
+      totalLessons: lessonsWithValidation.length,
+      blockingIssues,
+    },
+  };
+}
