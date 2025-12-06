@@ -43,7 +43,7 @@ Schema (reject if missing/empty):
     ],
     "reference_week": {
       "theme": "Exploring Ecosystems",
-      "lessons": [
+      "lessons": [  // MUST be exactly 5 lesson objects, not strings, not fewer, not more
         {
           "title": "Pond community mapping with organism cards",
           "objectives": ["Map food web relationships", "Identify ecosystem roles"],
@@ -212,10 +212,13 @@ Weekly requirements (reject if missing):
 - Each lesson must include: title, objectives, materials, activities (prior knowledge -> exploration -> concept building -> reflection), Montessori elements (prepared environment, manipulatives, learner choice, self-correction), 3+ critical-thinking questions, materials list, assessment notes, duration, age_range, and pedagogy flags.
 - Montessori markers must show choice, hands-on manipulatives, and self-correction. Constructivist phases must be explicit. Critical-thinking questions must be open-ended and evidence-oriented.
 - All text in English only; do not emit Spanish or non-ASCII characters.
-- Return exactly five lessons and nothing outside the JSON structure.
+- CRITICAL: template.reference_week.lessons MUST contain exactly 5 lesson objects (not strings, not fewer, not more). This is a required array with length 5.
+- CRITICAL: lessons array MUST contain exactly 5 lesson objects. Return exactly five lessons and nothing outside the JSON structure.
 
 Validation + auto-correction behavior:
 - If any field is empty or any checklist item is false/missing, regenerate until all requirements are satisfied.
+- CRITICAL: Count template.reference_week.lessons array - it MUST have exactly 5 lesson objects. If it has fewer, add more. If it has more, remove extras. If any are strings instead of objects, convert them to full lesson objects.
+- CRITICAL: Count lessons array - it MUST have exactly 5 lesson objects. If it has fewer, add more. If it has more, remove extras.
 - Stop/reprompt yourself with the missing fields summary until every section is populated and compliant.
 
 High-quality exemplars to mirror (themes + five lessons each, all English):
