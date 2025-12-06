@@ -366,21 +366,40 @@ function parseWithSchema<T extends z.ZodTypeAny>(
 export async function generateWeeklyProgram(input: LessonPlanInput): Promise<ValidatedWeeklyProgram> {
   const prompt = `Weekly theme: ${input.weeklyTheme}\nSubject area: ${input.subjectArea}\nGrade level: ${input.gradeLevel}\nLearner profile: ${input.learnerProfile ?? 'Not provided; assume mixed readiness with opportunities for choice.'}\nConstraints: ${input.constraints ?? 'None provided; keep materials lightweight and classroom-ready.'}`;
 
-  const response = await generateText(prompt, WEEKLY_LESSON_SYSTEM_PROMPT, 'gpt-4o-mini', true);
+  let attempt = 0;
+  let lastIssues: string[] = [];
+  let lastDraft: WeeklyProgram | null = null;
+  let lastRaw = '';
 
-  const structuredPlan: WeeklyProgram = parseWithSchema(response, WeeklyProgramSchema, {
-    provider: 'openai',
-    stage: 'weekly-plan',
-  });
+  while (attempt < MAX_LLM_ATTEMPTS) {
+    const repairContext =
+      attempt === 0
+        ? ''
+        : `\nPrevious draft failed validation:\n- ${lastIssues.join('\n- ')}\nReturn corrected, fully populated JSON only. Here is the last attempt for reference:\n${JSON.stringify(lastDraft, null, 2)}`;
 
-  const validated = validateWeeklyProgram(structuredPlan);
-  if (validated.validation.blockingIssues.length > 0) {
-    throw new LLMServiceError('Lesson plan failed pedagogy validation', 'schema-validation', {
-      issues: validated.validation.blockingIssues,
+    const response = await generateText(`${prompt}${repairContext}`, WEEKLY_LESSON_SYSTEM_PROMPT, 'gpt-4o-mini', true);
+    lastRaw = response;
+
+    const structuredPlan: WeeklyProgram = parseWithSchema(response, WeeklyProgramSchema, {
+      provider: 'openai',
+      stage: 'weekly-plan',
     });
+
+    const validated = validateWeeklyProgram(structuredPlan);
+    if (validated.validation.blockingIssues.length === 0) {
+      return validated;
+    }
+
+    attempt += 1;
+    lastDraft = structuredPlan;
+    lastIssues = validated.validation.blockingIssues;
+    await wait(RETRY_BASE_DELAY_MS * attempt);
   }
 
-  return validated;
+  throw new LLMServiceError('Lesson plan failed pedagogy validation after retries', 'schema-validation', {
+    issues: lastIssues,
+    lastRaw,
+  });
 }
 
 export async function formatWeeklyMarkdown(program: ValidatedWeeklyProgram): Promise<string> {

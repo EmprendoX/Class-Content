@@ -11,6 +11,9 @@ const baseLessonValidation = {
   hasObjectives: true,
   hasMaterials: true,
   hasActivities: true,
+  hasMontessoriElements: true,
+  hasDuration: true,
+  hasAgeRange: true,
   hasCriticalQuestions: true,
   montessoriComplete: true,
   constructivistComplete: true,
@@ -28,11 +31,23 @@ const makeLesson = (title: string): LessonPlanWithValidation => ({
     concept_building: 'Connect findings to the big idea.',
     reflection: 'Reflect and self-correct with a peer.',
   },
-  critical_questions: ['What evidence supports your idea?', 'How could this change in a new context?'],
+  montessori: {
+    prepared_environment: 'Shelves with trays and clear labels',
+    manipulatives: 'Choice of ramps, blocks, and timers',
+    choice: 'Learners pick which ramp angle to test',
+    self_correction: 'Check answers with a peer and measuring card',
+  },
+  critical_questions: [
+    'What evidence supports your idea?',
+    'How could this change in a new context?',
+    'Where would you add self-correction?',
+  ],
   assessment: 'Observation notes and quick exit ticket.',
+  duration: '50 minutes',
+  age_range: 'Ages 9-11',
   pedagogy_flags: {
-    montessori: { choice: true, hands_on: true, self_paced: true, self_correction: true },
-    constructivist: { link_to_prior_knowledge: true, guided_discovery: true, social_interaction: true },
+    montessori: { choice: true, hands_on: true, prepared_environment: true, self_correction: true },
+    constructivist: { link_to_prior_knowledge: true, guided_discovery: true, social_interaction: true, peer_collaboration: true },
     critical: { open_questions: true, evidence_based_claims: true, peer_discussion: true },
   },
   validation: baseLessonValidation,
@@ -41,7 +56,15 @@ const makeLesson = (title: string): LessonPlanWithValidation => ({
 const validatedProgram: ValidatedWeeklyProgram = {
   weeklyTheme: 'Exploring Ecosystems',
   overview: 'Learners explore ecosystems through hands-on investigations and reflection.',
-  template: { lesson: 'Objectives, materials, constructivist phases, critical questions, assessment, checklists' },
+  template: {
+    lesson: 'Objectives, materials, constructivist phases, critical questions, assessment, checklists',
+    lesson_schema: makeLesson('Template'),
+    weekly_template: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'],
+    reference_week: {
+      theme: 'Exploring Ecosystems',
+      lessons: [makeLesson('Lesson A'), makeLesson('Lesson B'), makeLesson('Lesson C'), makeLesson('Lesson D'), makeLesson('Lesson E')],
+    },
+  },
   lessons: [makeLesson('Lesson 1'), makeLesson('Lesson 2'), makeLesson('Lesson 3'), makeLesson('Lesson 4'), makeLesson('Lesson 5')],
   validation: {
     englishOnly: true,
