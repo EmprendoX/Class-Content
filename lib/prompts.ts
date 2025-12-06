@@ -34,15 +34,146 @@ Schema (reject if missing/empty):
         "critical": {"open_questions": true, "evidence_based_claims": true, "peer_discussion": true}
       }
     },
-    "weekly_template": ["Five lesson placeholders with escalating complexity and unique materials"],
+    "weekly_template": [
+      "Lesson 1: Introduction and exploration with hands-on materials",
+      "Lesson 2: Guided discovery with peer collaboration", 
+      "Lesson 3: Concept building with self-correction activities",
+      "Lesson 4: Application and evidence-based reasoning",
+      "Lesson 5: Synthesis and peer critique with reflection"
+    ],
     "reference_week": {
       "theme": "Exploring Ecosystems",
       "lessons": [
-        "Pond community mapping with organism cards",
-        "Designing a terrarium microhabitat",
-        "Decomposer lab with magnifiers and self-check keys",
-        "Energy transfer role-play and evidence wall",
-        "Biome design studio with peer critique"
+        {
+          "title": "Pond community mapping with organism cards",
+          "objectives": ["Map food web relationships", "Identify ecosystem roles"],
+          "materials": ["Organism cards", "Poster board", "Markers"],
+          "activities": {
+            "prior_knowledge": "Recall what you know about ponds and living things",
+            "exploration": "Sort organism cards and create food web connections",
+            "concept_building": "Discuss energy flow and interdependence",
+            "reflection": "Self-check with answer key and peer review"
+          },
+          "montessori": {
+            "prepared_environment": "Organized card station with work mats",
+            "manipulatives": "Color-coded organism cards with images",
+            "choice": "Choose starting organism and connection style",
+            "self_correction": "Answer key wall chart for verification"
+          },
+          "critical_questions": ["What happens if one organism disappears?", "How do energy and matter flow?", "What evidence supports your connections?"],
+          "assessment": "Observation of food web accuracy and peer discussion notes",
+          "duration": "45 minutes",
+          "age_range": "Ages 9-11",
+          "pedagogy_flags": {
+            "montessori": {"choice": true, "hands_on": true, "prepared_environment": true, "self_correction": true},
+            "constructivist": {"link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true, "peer_collaboration": true},
+            "critical": {"open_questions": true, "evidence_based_claims": true, "peer_discussion": true}
+          }
+        },
+        {
+          "title": "Designing a terrarium microhabitat",
+          "objectives": ["Create balanced ecosystem", "Observe living systems"],
+          "materials": ["Clear containers", "Soil", "Plants", "Small animals", "Magnifiers"],
+          "activities": {
+            "prior_knowledge": "Share experiences with plants and small animals",
+            "exploration": "Design and build terrarium with chosen materials",
+            "concept_building": "Discuss needs of living things and balance",
+            "reflection": "Daily observation journal with self-assessment"
+          },
+          "montessori": {
+            "prepared_environment": "Material shelves with labeled containers",
+            "manipulatives": "Various soil types, plants, and observation tools",
+            "choice": "Select container size and ecosystem components",
+            "self_correction": "Checklist for terrarium requirements"
+          },
+          "critical_questions": ["What makes an ecosystem balanced?", "How do living things depend on each other?", "What would happen if you changed one element?"],
+          "assessment": "Terrarium design rubric and observation journal review",
+          "duration": "60 minutes",
+          "age_range": "Ages 9-11",
+          "pedagogy_flags": {
+            "montessori": {"choice": true, "hands_on": true, "prepared_environment": true, "self_correction": true},
+            "constructivist": {"link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true, "peer_collaboration": true},
+            "critical": {"open_questions": true, "evidence_based_claims": true, "peer_discussion": true}
+          }
+        },
+        {
+          "title": "Decomposer lab with magnifiers and self-check keys",
+          "objectives": ["Identify decomposers", "Understand decomposition process"],
+          "materials": ["Compost samples", "Magnifiers", "Identification keys", "Observation sheets"],
+          "activities": {
+            "prior_knowledge": "Discuss what happens to fallen leaves",
+            "exploration": "Examine compost samples and identify organisms",
+            "concept_building": "Connect decomposers to nutrient cycling",
+            "reflection": "Compare findings with identification key and peer groups"
+          },
+          "montessori": {
+            "prepared_environment": "Lab station with organized materials",
+            "manipulatives": "Magnifiers, samples, and visual identification guides",
+            "choice": "Select sample type and observation method",
+            "self_correction": "Identification key with images and descriptions"
+          },
+          "critical_questions": ["Why are decomposers important?", "What evidence shows decomposition?", "How does this connect to larger cycles?"],
+          "assessment": "Identification accuracy and observation sheet completion",
+          "duration": "50 minutes",
+          "age_range": "Ages 9-11",
+          "pedagogy_flags": {
+            "montessori": {"choice": true, "hands_on": true, "prepared_environment": true, "self_correction": true},
+            "constructivist": {"link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true, "peer_collaboration": true},
+            "critical": {"open_questions": true, "evidence_based_claims": true, "peer_discussion": true}
+          }
+        },
+        {
+          "title": "Energy transfer role-play and evidence wall",
+          "objectives": ["Model energy flow", "Use evidence to support claims"],
+          "materials": ["Role cards", "Evidence cards", "Poster paper", "Markers"],
+          "activities": {
+            "prior_knowledge": "Recall food web from lesson 1",
+            "exploration": "Role-play energy transfer through ecosystem levels",
+            "concept_building": "Build evidence wall showing energy flow patterns",
+            "reflection": "Peer critique of evidence and connections"
+          },
+          "montessori": {
+            "prepared_environment": "Open space with role stations and wall space",
+            "manipulatives": "Role cards, evidence cards, and visual aids",
+            "choice": "Select role and evidence to present",
+            "self_correction": "Evidence checklist and peer feedback forms"
+          },
+          "critical_questions": ["How does energy move through ecosystems?", "What evidence supports your model?", "Where does energy come from and go?"],
+          "assessment": "Role-play participation and evidence wall quality",
+          "duration": "55 minutes",
+          "age_range": "Ages 9-11",
+          "pedagogy_flags": {
+            "montessori": {"choice": true, "hands_on": true, "prepared_environment": true, "self_correction": true},
+            "constructivist": {"link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true, "peer_collaboration": true},
+            "critical": {"open_questions": true, "evidence_based_claims": true, "peer_discussion": true}
+          }
+        },
+        {
+          "title": "Biome design studio with peer critique",
+          "objectives": ["Design complete biome", "Apply ecosystem concepts"],
+          "materials": ["Design templates", "Reference materials", "Art supplies", "Peer critique forms"],
+          "activities": {
+            "prior_knowledge": "Review all ecosystem concepts from the week",
+            "exploration": "Design original biome with all components",
+            "concept_building": "Present design and explain ecosystem relationships",
+            "reflection": "Peer critique session with revision based on feedback"
+          },
+          "montessori": {
+            "prepared_environment": "Design studio with materials and reference library",
+            "manipulatives": "Templates, reference books, and design tools",
+            "choice": "Select biome type and design approach",
+            "self_correction": "Design rubric and peer feedback protocol"
+          },
+          "critical_questions": ["How do all ecosystem parts work together?", "What makes your biome sustainable?", "How would you improve your design?"],
+          "assessment": "Biome design rubric and peer critique participation",
+          "duration": "70 minutes",
+          "age_range": "Ages 9-11",
+          "pedagogy_flags": {
+            "montessori": {"choice": true, "hands_on": true, "prepared_environment": true, "self_correction": true},
+            "constructivist": {"link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true, "peer_collaboration": true},
+            "critical": {"open_questions": true, "evidence_based_claims": true, "peer_discussion": true}
+          }
+        }
       ]
     }
   },
@@ -78,7 +209,7 @@ Schema (reject if missing/empty):
 
 Weekly requirements (reject if missing):
 - One coherent weekly theme with 5 unique, escalating lessons (include at least one peer-collaboration activity and one self-correction station per lesson).
-- Each lesson must include: title, objectives, materials, activities (prior knowledge → exploration → concept building → reflection), Montessori elements (prepared environment, manipulatives, learner choice, self-correction), ≥3 critical-thinking questions, materials list, assessment notes, duration, age_range, and pedagogy flags.
+- Each lesson must include: title, objectives, materials, activities (prior knowledge -> exploration -> concept building -> reflection), Montessori elements (prepared environment, manipulatives, learner choice, self-correction), 3+ critical-thinking questions, materials list, assessment notes, duration, age_range, and pedagogy flags.
 - Montessori markers must show choice, hands-on manipulatives, and self-correction. Constructivist phases must be explicit. Critical-thinking questions must be open-ended and evidence-oriented.
 - All text in English only; do not emit Spanish or non-ASCII characters.
 - Return exactly five lessons and nothing outside the JSON structure.
@@ -90,7 +221,7 @@ Validation + auto-correction behavior:
 High-quality exemplars to mirror (themes + five lessons each, all English):
 - Exploring Ecosystems: pond food webs, terrarium observation, decomposers lab, energy transfer debate, biome design studio.
 - Forces and Motion: push/pull scavenger hunt, ramp investigations with manipulatives, balanced/unbalanced force stations, peer-designed obstacle course, reflection on everyday motion.
-- Storytelling & Narrative Structure: sensory story seeds, plot mountain with movable cards, character empathy circles, peer storyboard swaps, reflective author’s chair.
+- Storytelling and Narrative Structure: sensory story seeds, plot mountain with movable cards, character empathy circles, peer storyboard swaps, reflective author's chair.
 `;
 
 export const WEEKLY_MARKDOWN_FORMAT_PROMPT = `You format a weekly 5-lesson program for printing and sharing.
