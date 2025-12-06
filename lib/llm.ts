@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { ZodSchema } from 'zod';
+import type { z } from 'zod';
 import { WEEKLY_LESSON_SYSTEM_PROMPT, WEEKLY_MARKDOWN_FORMAT_PROMPT } from './prompts';
 import {
   LessonPlanInput,
@@ -36,9 +36,30 @@ async function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY not found in environment variables');
+function validateApiKey(): void {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    const message = 'OPENAI_API_KEY is required. Please set it in your .env.local file.';
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(message);
+    }
+    console.warn(`[LLM] ${message}`);
+    return;
+  }
+
+  // Validar formato básico de API key de OpenAI (debe empezar con sk-)
+  if (!apiKey.startsWith('sk-')) {
+    const message = 'OPENAI_API_KEY has invalid format. OpenAI API keys should start with "sk-".';
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(message);
+    }
+    console.warn(`[LLM] ${message}`);
+  }
 }
+
+// Validar API key al cargar el módulo
+validateApiKey();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -65,6 +86,7 @@ export async function generateText(
   }
 
   let lastError: unknown;
+  let triedOpenRouter = false;
 
   for (let attempt = 1; attempt <= MAX_LLM_ATTEMPTS; attempt++) {
     try {
@@ -80,10 +102,132 @@ export async function generateText(
 
       return content;
     } catch (error) {
+      // Capturar errores específicos de OpenAI SDK
+      let statusCode: number | undefined;
+      let errorCode: string | undefined;
+      let errorMessage: string | undefined;
+
+      // El SDK de OpenAI lanza errores con propiedades status, code, message
+      if (error && typeof error === 'object') {
+        const apiError = error as {
+          status?: number;
+          code?: string;
+          message?: string;
+          error?: { code?: string; message?: string };
+        };
+
+        statusCode = apiError.status;
+        errorCode = apiError.code || apiError.error?.code;
+        errorMessage = apiError.message || apiError.error?.message;
+      }
+
       logLLMFailure('openai', attempt, error);
+
+      // Manejar errores específicos según status code
+      if (statusCode === 401 || statusCode === 403) {
+        // API key inválida o faltante
+        throw new LLMServiceError(
+          'Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env.local',
+          'api-error',
+          {
+            provider: 'openai',
+            attempt,
+            model,
+            status: statusCode,
+            code: errorCode,
+            message: errorMessage,
+          }
+        );
+      }
+
+      if (statusCode === 429) {
+        // Rate limit - esperar más tiempo antes de reintentar
+        lastError = new LLMServiceError(
+          'OpenAI rate limit exceeded. Please try again in a few moments.',
+          'api-error',
+          {
+            provider: 'openai',
+            attempt,
+            model,
+            status: statusCode,
+            code: errorCode,
+            message: errorMessage,
+          }
+        );
+
+        // Intentar OpenRouter como fallback solo una vez
+        if (OPENROUTER_API_KEY && !triedOpenRouter && attempt === 1) {
+          triedOpenRouter = true;
+          try {
+            return await generateTextOpenRouter(prompt, systemPrompt, model);
+          } catch (routerError) {
+            logLLMFailure('openrouter', attempt, routerError);
+            // Continuar con reintentos de OpenAI
+          }
+        }
+
+        // Esperar más tiempo para rate limits (exponential backoff)
+        if (attempt < MAX_LLM_ATTEMPTS) {
+          const waitTime = RETRY_BASE_DELAY_MS * Math.pow(2, attempt) * 2; // Más tiempo para rate limits
+          await wait(waitTime);
+        }
+        continue;
+      }
+
+      if (statusCode === 400) {
+        // Bad request - no reintentar
+        throw new LLMServiceError(
+          `Invalid request to OpenAI API: ${errorMessage || 'Bad request'}`,
+          'api-error',
+          {
+            provider: 'openai',
+            attempt,
+            model,
+            status: statusCode,
+            code: errorCode,
+            message: errorMessage,
+          }
+        );
+      }
+
+      if (statusCode && statusCode >= 500) {
+        // Server error - reintentar
+        lastError = new LLMServiceError(
+          `OpenAI server error (${statusCode}). Retrying...`,
+          'api-error',
+          {
+            provider: 'openai',
+            attempt,
+            model,
+            status: statusCode,
+            code: errorCode,
+            message: errorMessage,
+          }
+        );
+
+        // Intentar OpenRouter como fallback solo una vez
+        if (OPENROUTER_API_KEY && !triedOpenRouter && attempt === 1) {
+          triedOpenRouter = true;
+          try {
+            return await generateTextOpenRouter(prompt, systemPrompt, model);
+          } catch (routerError) {
+            logLLMFailure('openrouter', attempt, routerError);
+            // Continuar con reintentos de OpenAI
+          }
+        }
+
+        if (attempt < MAX_LLM_ATTEMPTS) {
+          await wait(RETRY_BASE_DELAY_MS * attempt);
+        }
+        continue;
+      }
+
+      // Error genérico - guardar y continuar con reintentos
       lastError = error;
 
-      if (OPENROUTER_API_KEY) {
+      // Intentar OpenRouter como fallback solo una vez
+      if (OPENROUTER_API_KEY && !triedOpenRouter && attempt === 1) {
+        triedOpenRouter = true;
         try {
           return await generateTextOpenRouter(prompt, systemPrompt, model);
         } catch (routerError) {
@@ -99,6 +243,7 @@ export async function generateText(
   }
 
   if (lastError instanceof LLMServiceError) {
+    // Preservar el mensaje de error específico si ya es un LLMServiceError
     throw new LLMServiceError(lastError.message, lastError.code, {
       ...(lastError.meta ?? {}),
       model,
@@ -106,10 +251,14 @@ export async function generateText(
     });
   }
 
-  throw new LLMServiceError('Failed to generate text after retries', 'api-error', {
+  // Mejorar mensaje de error final con información útil
+  const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  const finalMessage = `Failed to generate text after ${MAX_LLM_ATTEMPTS} attempts. ${errorMessage || 'Unknown error occurred'}`;
+  
+  throw new LLMServiceError(finalMessage, 'api-error', {
     model,
     attempts: MAX_LLM_ATTEMPTS,
-    lastError: lastError instanceof Error ? lastError.message : String(lastError),
+    lastError: errorMessage,
   });
 }
 
@@ -182,11 +331,11 @@ function extractJsonPayload(raw: string): string {
   return jsonStr;
 }
 
-function parseWithSchema<T>(
+function parseWithSchema<T extends z.ZodTypeAny>(
   raw: string,
-  schema: ZodSchema<T>,
+  schema: T,
   context: { provider: string; stage: string }
-): T {
+): z.infer<T> {
   const jsonStr = extractJsonPayload(raw);
 
   let parsed: unknown;

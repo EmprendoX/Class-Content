@@ -74,7 +74,16 @@ describe('buildWeeklyLessonProgram', () => {
 
     const program = await buildWeeklyLessonProgram(input, {
       onStage(stage, payload) {
-        stages.push({ stage, status: (payload as { status?: string })?.status });
+        const stageEntry: { stage: string; status?: string } = {
+          stage: stage ?? '',
+        };
+        if (payload && typeof payload === 'object' && 'status' in payload) {
+          const payloadStatus = (payload as { status?: unknown }).status;
+          if (typeof payloadStatus === 'string') {
+            stageEntry.status = payloadStatus;
+          }
+        }
+        stages.push(stageEntry);
       },
     });
 

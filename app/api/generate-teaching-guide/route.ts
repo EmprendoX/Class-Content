@@ -91,19 +91,31 @@ export async function POST(request: NextRequest) {
               `[WeeklyLessonPlan] ${requestId} streaming generation completed in ${Date.now() - startedAt}ms`
             );
           } catch (err) {
-            console.error(`[WeeklyLessonPlan] ${requestId} streaming generation failed`, err);
+            // Logging mejorado con detalles completos
+            if (err instanceof LLMServiceError) {
+              console.error(`[WeeklyLessonPlan] ${requestId} streaming generation failed`, {
+                code: err.code,
+                message: err.message,
+                meta: err.meta,
+                stack: err.stack,
+              });
+            } else {
+              console.error(`[WeeklyLessonPlan] ${requestId} streaming generation failed`, err);
+            }
 
             if (err instanceof LLMServiceError) {
+              // Usar mensaje específico del error, con fallback a mensaje genérico
+              const errorMessage = err.message || 'The AI service could not complete the lesson plan. Please try again in a few minutes.';
+              
               send('error', {
-                error:
-                  'The AI service could not complete the lesson plan. Please try again in a few minutes.',
+                error: errorMessage,
                 code: err.code,
-                details: process.env.NODE_ENV !== 'production' ? err.message : undefined,
+                details: process.env.NODE_ENV !== 'production' ? (err.meta ? JSON.stringify(err.meta) : undefined) : undefined,
                 requestId,
               });
             } else if (err instanceof Error) {
               send('error', {
-                error: err.message,
+                error: err.message || 'The lesson plan could not be generated.',
                 requestId,
               });
             } else {
@@ -138,19 +150,36 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(program, { status: 200 });
   } catch (error) {
-    console.error(`[WeeklyLessonPlan] ${requestId} generation failed`, error);
+    // Logging mejorado con detalles completos
+    if (error instanceof LLMServiceError) {
+      console.error(`[WeeklyLessonPlan] ${requestId} generation failed`, {
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+        stack: error.stack,
+      });
+    } else {
+      console.error(`[WeeklyLessonPlan] ${requestId} generation failed`, error);
+    }
 
     if (error instanceof LLMServiceError) {
+      // Usar mensaje específico del error, con fallback a mensaje genérico
+      const errorMessage = error.message || 'The AI service could not complete the lesson plan. Please try again in a few minutes.';
+      
       const responseBody: Record<string, unknown> = {
-        error: 'The AI service could not complete the lesson plan. Please try again in a few minutes.',
+        error: errorMessage,
         code: error.code,
         requestId,
       };
 
-      if (process.env.NODE_ENV !== 'production') {
-        responseBody.details = error.message;
+      // Incluir detalles adicionales en desarrollo o para errores de configuración
+      if (process.env.NODE_ENV !== 'production' || error.code === 'api-error') {
         if (error.meta) {
           responseBody.meta = error.meta;
+        }
+        // Incluir detalles técnicos solo en desarrollo
+        if (process.env.NODE_ENV !== 'production') {
+          responseBody.details = error.message;
         }
       }
 
@@ -160,8 +189,8 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       return NextResponse.json(
         {
-          error: 'The lesson plan could not be generated.',
-          details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+          error: error.message || 'The lesson plan could not be generated.',
+          details: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
           requestId,
         },
         { status: 500 }

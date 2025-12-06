@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return new NextResponse(pdf, {
+    return new NextResponse(pdf as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename="linkedin-campaign.pdf"',
