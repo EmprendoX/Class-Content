@@ -591,7 +591,7 @@ function parseWithSchema<T extends z.ZodTypeAny>(
 }
 
 export async function generateWeeklyProgram(input: LessonPlanInput): Promise<ValidatedWeeklyProgram> {
-  const prompt = `Weekly theme: ${input.weeklyTheme}\nSubject area: ${input.subjectArea}\nGrade level: ${input.gradeLevel}\nLearner profile: ${input.learnerProfile ?? 'Not provided; assume mixed readiness with opportunities for choice.'}\nConstraints: ${input.constraints ?? 'None provided; keep materials lightweight and classroom-ready.'}`;
+  const prompt = `Weekly theme: ${input.weeklyTheme}\nSubject area: ${input.subjectArea}\nGrade level: ${input.gradeLevel}\nLearner profile: ${input.learnerProfile ?? 'Not provided; assume mixed readiness with opportunities for choice.'}\nConstraints: ${input.constraints ?? 'None provided; keep materials lightweight and classroom-ready.'}\nInstruction: Deliver content-rich lessons with explicit talking points, facts, and named sources (no URLs) instead of meta-instructions or generic prompts.`;
 
   let attempt = 0;
   let lastIssues: string[] = [];
