@@ -74,6 +74,176 @@ export function sanitizeEnglishContent<T>(payload: T): T {
   return payload;
 }
 
+function ensureStringArray(
+  value: unknown,
+  fallbackPrefix: string,
+  requiredLength: number
+): string[] {
+  const items = Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+
+  if (items.length >= requiredLength) {
+    return items;
+  }
+
+  const result = [...items];
+  while (result.length < requiredLength) {
+    result.push(`${fallbackPrefix} ${result.length + 1}`);
+  }
+
+  return result;
+}
+
+function ensureString(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+}
+
+function ensureActivities(value: unknown): Record<string, string> {
+  const activities = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+
+  return {
+    prior_knowledge: ensureString(activities.prior_knowledge, 'Recall prior learning with a quick prompt.'),
+    exploration: ensureString(
+      activities.exploration,
+      'Hands-on or inquiry activity with manipulatives and peer collaboration.'
+    ),
+    concept_building: ensureString(
+      activities.concept_building,
+      'Facilitated connection to the key concept using learner discoveries.'
+    ),
+    reflection: ensureString(activities.reflection, 'Reflection and self-correction with peers.'),
+  };
+}
+
+function ensurePedagogyFlags(value: unknown): Record<string, Record<string, boolean>> {
+  const flags = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+
+  return {
+    montessori: {
+      choice: true,
+      hands_on: true,
+      prepared_environment: true,
+      self_correction: true,
+      ...(typeof flags.montessori === 'object' && flags.montessori !== null
+        ? (flags.montessori as Record<string, boolean>)
+        : {}),
+    },
+    constructivist: {
+      link_to_prior_knowledge: true,
+      guided_discovery: true,
+      social_interaction: true,
+      peer_collaboration: true,
+      ...(typeof flags.constructivist === 'object' && flags.constructivist !== null
+        ? (flags.constructivist as Record<string, boolean>)
+        : {}),
+    },
+    critical: {
+      open_questions: true,
+      evidence_based_claims: true,
+      peer_discussion: true,
+      ...(typeof flags.critical === 'object' && flags.critical !== null
+        ? (flags.critical as Record<string, boolean>)
+        : {}),
+    },
+  };
+}
+
+function coerceLessonTemplate(rawLesson: unknown, index: number): Record<string, unknown> {
+  const lesson = typeof rawLesson === 'object' && rawLesson !== null ? (rawLesson as Record<string, unknown>) : {};
+
+  return {
+    title: ensureString(lesson.title, `Reference Lesson ${index + 1}`),
+    objectives: ensureStringArray(lesson.objectives, 'Objective', 1),
+    materials: ensureStringArray(lesson.materials, 'Material', 1),
+    activities: ensureActivities(lesson.activities),
+    montessori: {
+      prepared_environment: ensureString(
+        lesson.montessori && typeof lesson.montessori === 'object'
+          ? (lesson.montessori as Record<string, unknown>).prepared_environment
+          : undefined,
+        'Prepared environment with clear choices and labels.'
+      ),
+      manipulatives: ensureString(
+        lesson.montessori && typeof lesson.montessori === 'object'
+          ? (lesson.montessori as Record<string, unknown>).manipulatives
+          : undefined,
+        'Hands-on manipulatives available at stations.'
+      ),
+      choice: ensureString(
+        lesson.montessori && typeof lesson.montessori === 'object' ? (lesson.montessori as Record<string, unknown>).choice : undefined,
+        'Learners pick at least one path or material set.'
+      ),
+      self_correction: ensureString(
+        lesson.montessori && typeof lesson.montessori === 'object'
+          ? (lesson.montessori as Record<string, unknown>).self_correction
+          : undefined,
+        'Self-check cues or cards are provided.'
+      ),
+    },
+    critical_questions: ensureStringArray(lesson.critical_questions, 'Open question', 3),
+    assessment: ensureString(lesson.assessment, 'Observation notes and a quick exit ticket.'),
+    duration: ensureString(lesson.duration, '50 minutes'),
+    age_range: ensureString(lesson.age_range, 'Ages 9-11'),
+    pedagogy_flags: ensurePedagogyFlags(lesson.pedagogy_flags),
+  };
+}
+
+function normalizeLessonsArray(rawLessons: unknown, label: string): Array<Record<string, unknown>> {
+  const lessons = Array.isArray(rawLessons) ? rawLessons : [];
+  const normalized = lessons.map((lesson, idx) => coerceLessonTemplate(lesson, idx));
+
+  while (normalized.length < 5) {
+    normalized.push(coerceLessonTemplate({}, normalized.length));
+  }
+
+  if (normalized.length > 5) {
+    return normalized.slice(0, 5).map((lesson, idx) => ({
+      ...lesson,
+      title: ensureString(lesson.title, `${label} ${idx + 1}`),
+    }));
+  }
+
+  return normalized.map((lesson, idx) => ({
+    ...lesson,
+    title: ensureString(lesson.title, `${label} ${idx + 1}`),
+  }));
+}
+
+function normalizeWeeklyProgramDraft(parsed: unknown): unknown {
+  if (parsed === null || typeof parsed !== 'object') return parsed;
+
+  const draft = parsed as Record<string, unknown>;
+  const template = draft.template;
+
+  if (template && typeof template === 'object') {
+    const templateObj = template as Record<string, unknown>;
+
+    if (Array.isArray(templateObj.weekly_template)) {
+      while (templateObj.weekly_template.length < 5) {
+        templateObj.weekly_template.push(`Class ${templateObj.weekly_template.length + 1}`);
+      }
+      if (templateObj.weekly_template.length > 5) {
+        templateObj.weekly_template = templateObj.weekly_template.slice(0, 5);
+      }
+    }
+
+    if (templateObj.reference_week && typeof templateObj.reference_week === 'object') {
+      const referenceWeek = templateObj.reference_week as Record<string, unknown>;
+      referenceWeek.lessons = normalizeLessonsArray(referenceWeek.lessons, 'Reference Lesson');
+      templateObj.reference_week = referenceWeek;
+    }
+
+    draft.template = templateObj;
+  }
+
+  if (draft.lessons) {
+    draft.lessons = normalizeLessonsArray(draft.lessons, 'Lesson');
+  }
+
+  return draft;
+}
+
 function validateApiKey(): void {
   const apiKey = process.env.OPENAI_API_KEY;
   
@@ -392,7 +562,8 @@ function parseWithSchema<T extends z.ZodTypeAny>(
   }
 
   try {
-    const sanitized = sanitizeEnglishContent(parsed) as T;
+    const normalized = normalizeWeeklyProgramDraft(parsed);
+    const sanitized = sanitizeEnglishContent(normalized) as T;
     return schema.parse(sanitized);
   } catch (validationError) {
     console.error(`[LLM:${context.stage}] Schema validation failed`, parsed);
