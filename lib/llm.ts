@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { WEEKLY_LESSON_SYSTEM_PROMPT, WEEKLY_MARKDOWN_FORMAT_PROMPT } from './prompts';
 import {
   LessonPlanInput,
@@ -323,9 +323,11 @@ function extractJsonPayload(raw: string): string {
     jsonStr = jsonStr.replace(/^```(?:json)?\n/, '').replace(/\n```$/, '');
   }
 
-  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return jsonMatch[0];
+  const start = jsonStr.indexOf('{');
+  const end = jsonStr.lastIndexOf('}');
+
+  if (start !== -1 && end !== -1 && end > start) {
+    return jsonStr.slice(start, end + 1);
   }
 
   return jsonStr;
@@ -355,10 +357,25 @@ function parseWithSchema<T extends z.ZodTypeAny>(
     return schema.parse(parsed);
   } catch (validationError) {
     console.error(`[LLM:${context.stage}] Schema validation failed`, parsed);
-    throw new LLMServiceError('Response does not match expected schema', 'schema-validation', {
+    const issues = validationError instanceof z.ZodError ? validationError.issues : undefined;
+    const zodIssues = issues?.map((issue) => {
+      const path = issue.path.join('.') || 'root';
+      return `${path}: ${issue.message}`;
+    });
+
+    const rawSnippet = (() => {
+      const payload = extractJsonPayload(raw);
+      return payload.slice(0, 400);
+    })();
+
+    const detailMessage = zodIssues?.length ? `: ${zodIssues.join(' | ')}` : '';
+
+    throw new LLMServiceError(`Response does not match expected schema${detailMessage}`, 'schema-validation', {
       provider: context.provider,
       stage: context.stage,
       error: validationError instanceof Error ? validationError.message : String(validationError),
+      issues: zodIssues,
+      rawSnippet,
     });
   }
 }
