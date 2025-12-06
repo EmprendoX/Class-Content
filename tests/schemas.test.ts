@@ -8,9 +8,16 @@ import {
 } from '@/lib/schemas';
 
 const basePedagogyFlags = {
-  montessori: { choice: true, hands_on: true, self_paced: true, self_correction: true },
-  constructivist: { link_to_prior_knowledge: true, guided_discovery: true, social_interaction: true },
+  montessori: { choice: true, hands_on: true, prepared_environment: true, self_correction: true },
+  constructivist: { link_to_prior_knowledge: true, guided_discovery: true, social_interaction: true, peer_collaboration: true },
   critical: { open_questions: true, evidence_based_claims: true, peer_discussion: true },
+};
+
+const baseMontessoriElements = {
+  prepared_environment: 'Shelf stations with labeled trays',
+  manipulatives: 'Hands-on kit with varied textures and scales',
+  choice: 'Learners pick two of three stations',
+  self_correction: 'Self-check cards at each station',
 };
 
 const makeLesson = (title: string) => ({
@@ -23,8 +30,15 @@ const makeLesson = (title: string) => ({
     concept_building: 'Facilitator guides learners to connect observations to ecosystems.',
     reflection: 'Learners self-correct using a checklist and share takeaways.',
   },
-  critical_questions: ['How does evidence change your claim?', 'What patterns do you observe?'],
+  montessori: baseMontessoriElements,
+  critical_questions: [
+    'How does evidence change your claim?',
+    'What patterns do you observe?',
+    'Where do you see room for self-correction?',
+  ],
   assessment: 'Observation notes plus a quick exit ticket.',
+  duration: '55 minutes',
+  age_range: 'Ages 9-11',
   pedagogy_flags: basePedagogyFlags,
 });
 
@@ -70,7 +84,15 @@ describe('Lesson and weekly schemas', () => {
     const weeklyProgram = WeeklyProgramSchema.parse({
       weeklyTheme: 'Forces and Motion',
       overview: 'Learners explore motion with hands-on investigations.',
-      template: { lesson: 'Objectives, materials, activities, questions, assessment, checklists' },
+      template: {
+        lesson: 'Objectives, materials, activities, questions, assessment, checklists',
+        lesson_schema: makeLesson('Template lesson'),
+        weekly_template: ['Class 1 focus', 'Class 2 exploration', 'Class 3 build', 'Class 4 refine', 'Class 5 share'],
+        reference_week: {
+          theme: 'Exploring Ecosystems',
+          lessons: [0, 1, 2, 3, 4].map((idx) => makeLesson(`Reference ${idx + 1}`)),
+        },
+      },
       lessons: [0, 1, 2, 3, 4].map((idx) => makeLesson(`Lesson ${idx + 1}`)),
     });
 
@@ -100,7 +122,15 @@ describe('Validation helpers', () => {
     const weeklyProgram = validateWeeklyProgram({
       weeklyTheme: 'Light and Shadow',
       overview: 'Investigate how light travels and how shadows form.',
-      template: { lesson: 'Reusable lesson template' },
+      template: {
+        lesson: 'Reusable lesson template',
+        lesson_schema: makeLesson('Schema Example'),
+        weekly_template: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5'],
+        reference_week: {
+          theme: 'Exploring Ecosystems',
+          lessons: [makeLesson('R1'), makeLesson('R2'), makeLesson('R3'), makeLesson('R4'), makeLesson('R5')],
+        },
+      },
       lessons: [makeLesson('L1'), makeLesson('L2'), makeLesson('L3'), makeLesson('L4'), makeLesson('L5')],
     });
 

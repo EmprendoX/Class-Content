@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const isEnglish = (value: string) => !/[áéíóúÁÉÍÓÚñÑ¿¡]/.test(value);
+const isEnglish = (value: string) => /^[\x00-\x7F]+$/.test(value);
 
 const trimValue = <T>(schema: z.ZodType<T>) =>
   z.preprocess((val) => (typeof val === 'string' ? val.trim() : val), schema);
@@ -42,17 +42,25 @@ const LessonActivitiesSchema = z.object({
   reflection: requiredEnglishString,
 });
 
+const MontessoriElementsSchema = z.object({
+  prepared_environment: requiredEnglishString,
+  manipulatives: requiredEnglishString,
+  choice: requiredEnglishString,
+  self_correction: requiredEnglishString,
+});
+
 const PedagogyFlagsSchema = z.object({
   montessori: z.object({
     choice: z.boolean(),
     hands_on: z.boolean(),
-    self_paced: z.boolean(),
+    prepared_environment: z.boolean(),
     self_correction: z.boolean(),
   }),
   constructivist: z.object({
     link_to_prior_knowledge: z.boolean(),
     guided_discovery: z.boolean(),
     social_interaction: z.boolean(),
+    peer_collaboration: z.boolean(),
   }),
   critical: z.object({
     open_questions: z.boolean(),
@@ -61,14 +69,30 @@ const PedagogyFlagsSchema = z.object({
   }),
 });
 
+const LessonTemplateSchema = z.object({
+  title: requiredEnglishString,
+  objectives: z.array(requiredEnglishString).min(1),
+  materials: z.array(requiredEnglishString).min(1),
+  activities: LessonActivitiesSchema,
+  montessori: MontessoriElementsSchema,
+  critical_questions: z.array(requiredEnglishString).min(3),
+  assessment: requiredEnglishString,
+  duration: requiredEnglishString,
+  age_range: requiredEnglishString,
+  pedagogy_flags: PedagogyFlagsSchema,
+});
+
 export const LessonPlanSchema = z
   .object({
     title: requiredEnglishString,
     objectives: z.array(requiredEnglishString).min(1),
     materials: z.array(requiredEnglishString).min(1),
     activities: LessonActivitiesSchema,
-    critical_questions: z.array(requiredEnglishString).min(1),
+    montessori: MontessoriElementsSchema,
+    critical_questions: z.array(requiredEnglishString).min(3),
     assessment: requiredEnglishString,
+    duration: requiredEnglishString,
+    age_range: requiredEnglishString,
     pedagogy_flags: PedagogyFlagsSchema,
   })
   .refine((lesson) => lesson.pedagogy_flags.montessori.choice, {
@@ -79,13 +103,41 @@ export const LessonPlanSchema = z
     message: 'Montessori hands_on flag must be true.',
     path: ['pedagogy_flags', 'montessori', 'hands_on'],
   })
+  .refine((lesson) => lesson.pedagogy_flags.montessori.prepared_environment, {
+    message: 'Montessori prepared_environment flag must be true.',
+    path: ['pedagogy_flags', 'montessori', 'prepared_environment'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.montessori.self_correction, {
+    message: 'Montessori self_correction flag must be true.',
+    path: ['pedagogy_flags', 'montessori', 'self_correction'],
+  })
   .refine((lesson) => lesson.pedagogy_flags.constructivist.link_to_prior_knowledge, {
     message: 'Constructivist prior knowledge flag must be true.',
     path: ['pedagogy_flags', 'constructivist', 'link_to_prior_knowledge'],
   })
+  .refine((lesson) => lesson.pedagogy_flags.constructivist.guided_discovery, {
+    message: 'Constructivist guided_discovery flag must be true.',
+    path: ['pedagogy_flags', 'constructivist', 'guided_discovery'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.constructivist.social_interaction, {
+    message: 'Constructivist social_interaction flag must be true.',
+    path: ['pedagogy_flags', 'constructivist', 'social_interaction'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.constructivist.peer_collaboration, {
+    message: 'Constructivist peer collaboration flag must be true.',
+    path: ['pedagogy_flags', 'constructivist', 'peer_collaboration'],
+  })
   .refine((lesson) => lesson.pedagogy_flags.critical.open_questions, {
     message: 'Critical thinking open questions flag must be true.',
     path: ['pedagogy_flags', 'critical', 'open_questions'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.critical.evidence_based_claims, {
+    message: 'Critical thinking evidence_based_claims flag must be true.',
+    path: ['pedagogy_flags', 'critical', 'evidence_based_claims'],
+  })
+  .refine((lesson) => lesson.pedagogy_flags.critical.peer_discussion, {
+    message: 'Critical thinking peer_discussion flag must be true.',
+    path: ['pedagogy_flags', 'critical', 'peer_discussion'],
   });
 
 export type LessonPlan = z.infer<typeof LessonPlanSchema>;
@@ -95,6 +147,12 @@ export const WeeklyProgramSchema = z.object({
   overview: requiredEnglishString,
   template: z.object({
     lesson: requiredEnglishString,
+    lesson_schema: LessonTemplateSchema,
+    weekly_template: z.array(requiredEnglishString).length(5),
+    reference_week: z.object({
+      theme: requiredEnglishString,
+      lessons: z.array(LessonTemplateSchema).length(5),
+    }),
   }),
   lessons: z.array(LessonPlanSchema).length(5, {
     message: 'Weekly program must include exactly 5 lessons.',
@@ -108,6 +166,9 @@ export interface LessonValidationResult {
   hasObjectives: boolean;
   hasMaterials: boolean;
   hasActivities: boolean;
+  hasMontessoriElements: boolean;
+  hasDuration: boolean;
+  hasAgeRange: boolean;
   hasCriticalQuestions: boolean;
   montessoriComplete: boolean;
   constructivistComplete: boolean;
@@ -157,13 +218,19 @@ export function validateLesson(lesson: LessonPlan): LessonValidationResult {
     isEnglish(lesson.activities.exploration) &&
     isEnglish(lesson.activities.concept_building) &&
     isEnglish(lesson.activities.reflection) &&
+    isEnglish(lesson.montessori.prepared_environment) &&
+    isEnglish(lesson.montessori.manipulatives) &&
+    isEnglish(lesson.montessori.choice) &&
+    isEnglish(lesson.montessori.self_correction) &&
     lesson.critical_questions.every(isEnglish) &&
-    isEnglish(lesson.assessment);
+    isEnglish(lesson.assessment) &&
+    isEnglish(lesson.duration) &&
+    isEnglish(lesson.age_range);
 
   if (!englishOnly) issues.push('Content must remain in English.');
   if (!lesson.objectives.length) issues.push('Objectives are required.');
   if (!lesson.materials.length) issues.push('Materials are required.');
-  if (!lesson.critical_questions.length) issues.push('Critical questions are required.');
+  if (lesson.critical_questions.length < 3) issues.push('At least 3 critical-thinking questions are required.');
 
   const hasActivities = Boolean(
     lesson.activities.prior_knowledge &&
@@ -174,14 +241,26 @@ export function validateLesson(lesson: LessonPlan): LessonValidationResult {
 
   if (!hasActivities) issues.push('All constructivist activity phases are required.');
 
+  const hasMontessoriElements = Boolean(
+    lesson.montessori.prepared_environment &&
+      lesson.montessori.manipulatives &&
+      lesson.montessori.choice &&
+      lesson.montessori.self_correction
+  );
+
+  if (!hasMontessoriElements) issues.push('Montessori elements (prepared environment, manipulatives, choice, self-correction) are required.');
+
+  if (!lesson.duration) issues.push('Duration is required.');
+  if (!lesson.age_range) issues.push('Age range is required.');
+
   const montessoriComplete = hasAllTrue(lesson.pedagogy_flags.montessori);
   const constructivistComplete = hasAllTrue(lesson.pedagogy_flags.constructivist);
   const criticalThinkingComplete = hasAllTrue(lesson.pedagogy_flags.critical);
 
   if (!montessoriComplete)
-    issues.push('Montessori checklist must be fully satisfied (choice, hands-on, self-paced, self-correction).');
+    issues.push('Montessori checklist must be fully satisfied (choice, hands-on, prepared environment, self-correction).');
   if (!constructivistComplete)
-    issues.push('Constructivist checklist must be fully satisfied (prior knowledge, guided discovery, social interaction).');
+    issues.push('Constructivist checklist must be fully satisfied (prior knowledge, guided discovery, social interaction, peer collaboration).');
   if (!criticalThinkingComplete)
     issues.push('Critical-thinking checklist must be fully satisfied (open questions, evidence-based claims, peer discussion).');
 
@@ -190,7 +269,10 @@ export function validateLesson(lesson: LessonPlan): LessonValidationResult {
     hasObjectives: Boolean(lesson.objectives.length),
     hasMaterials: Boolean(lesson.materials.length),
     hasActivities,
-    hasCriticalQuestions: Boolean(lesson.critical_questions.length),
+    hasMontessoriElements,
+    hasDuration: Boolean(lesson.duration),
+    hasAgeRange: Boolean(lesson.age_range),
+    hasCriticalQuestions: lesson.critical_questions.length >= 3,
     montessoriComplete,
     constructivistComplete,
     criticalThinkingComplete,
