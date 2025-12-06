@@ -35,6 +35,35 @@ export const LessonPlanInputSchema = z.object({
 
 export type LessonPlanInput = z.infer<typeof LessonPlanInputSchema>;
 
+export const BloomLevelSchema = z.enum([
+  'remember',
+  'understand',
+  'apply',
+  'analyze',
+  'evaluate',
+  'create',
+]);
+
+export type BloomLevel = z.infer<typeof BloomLevelSchema>;
+
+export const TopicPlanSchema = z.object({
+  topic: requiredEnglishString,
+  objectives: z.array(requiredEnglishString).min(1),
+});
+
+export type TopicPlan = z.infer<typeof TopicPlanSchema>;
+
+export const ClassPlanRequestSchema = z.object({
+  classTitle: requiredEnglishString,
+  level: requiredEnglishString,
+  bloomLevel: BloomLevelSchema,
+  overallObjectives: z.array(requiredEnglishString).min(1),
+  syllabus: z.array(TopicPlanSchema).min(1),
+  constraints: optionalEnglishString,
+});
+
+export type ClassPlanRequest = z.infer<typeof ClassPlanRequestSchema>;
+
 const LessonActivitiesSchema = z.object({
   prior_knowledge: requiredEnglishString,
   exploration: requiredEnglishString,
@@ -206,6 +235,99 @@ export type LessonProgramResponse = ValidatedWeeklyProgram & {
   meta: LessonProgramMeta;
 };
 
+const ExerciseSchema = z.object({
+  prompt: requiredEnglishString,
+  solution: requiredEnglishString,
+  bloom_focus: BloomLevelSchema,
+});
+
+const TopicSectionsSchema = z.object({
+  introduction: requiredEnglishString,
+  theory: requiredEnglishString,
+  examples: z.array(requiredEnglishString).min(1),
+  exercises_with_solutions: z.array(ExerciseSchema).min(1),
+  self_assessment: z.array(requiredEnglishString).min(1),
+  resources: z.array(requiredEnglishString).min(1),
+});
+
+const SubagentNotesSchema = z.object({
+  conceptual: requiredEnglishString,
+  examples: requiredEnglishString,
+  exercises: requiredEnglishString,
+  resources: requiredEnglishString,
+  review: requiredEnglishString,
+});
+
+export const TopicMaterialsSchema = z.object({
+  topic: requiredEnglishString,
+  levelTemplate: requiredEnglishString,
+  bloomTarget: BloomLevelSchema,
+  objectives: z.array(requiredEnglishString).min(1),
+  sections: TopicSectionsSchema,
+  coverage: z.object({
+    objectivesAddressed: z.array(requiredEnglishString),
+    bloomAlignment: requiredEnglishString,
+    minimumLengthRationale: requiredEnglishString,
+  }),
+  subagentNotes: SubagentNotesSchema,
+});
+
+export type TopicMaterials = z.infer<typeof TopicMaterialsSchema>;
+
+export const ClassPackageSchema = z.object({
+  classTitle: requiredEnglishString,
+  level: requiredEnglishString,
+  bloomLevel: BloomLevelSchema,
+  overallObjectives: z.array(requiredEnglishString).min(1),
+  syllabus: z.array(TopicPlanSchema).min(1),
+  topics: z.array(TopicMaterialsSchema).min(1),
+  consolidated: z.object({
+    overview: requiredEnglishString,
+    publishingNotes: requiredEnglishString,
+    learnerJourney: requiredEnglishString,
+    qaChecklist: requiredEnglishString,
+  }),
+});
+
+export type ClassPackage = z.infer<typeof ClassPackageSchema>;
+
+export interface TopicValidationResult {
+  englishOnly: boolean;
+  minLengthOk: boolean;
+  objectivesCovered: boolean;
+  bloomAligned: boolean;
+  issues: string[];
+}
+
+export interface ValidatedTopicMaterials extends TopicMaterials {
+  validation: TopicValidationResult;
+}
+
+export interface ClassValidationResult {
+  englishOnly: boolean;
+  topicsPassed: number;
+  totalTopics: number;
+  blockingIssues: string[];
+}
+
+export interface ValidatedClassPackage extends ClassPackage {
+  topics: ValidatedTopicMaterials[];
+  validation: ClassValidationResult;
+}
+
+export interface ClassPackageMeta {
+  level: string;
+  bloomLevel: BloomLevel;
+  constraints?: string;
+  generatedAt: string;
+}
+
+export type ClassPackageResponse = ValidatedClassPackage & {
+  markdown: string;
+  html: string;
+  meta: ClassPackageMeta;
+};
+
 const hasAllTrue = (obj: Record<string, boolean>) => Object.values(obj).every(Boolean);
 
 export function validateLesson(lesson: LessonPlan): LessonValidationResult {
@@ -301,6 +423,117 @@ export function validateWeeklyProgram(program: WeeklyProgram): ValidatedWeeklyPr
       englishOnly,
       lessonsPassed: lessonsWithValidation.filter((lesson) => lesson.validation.issues.length === 0).length,
       totalLessons: lessonsWithValidation.length,
+      blockingIssues,
+    },
+  };
+}
+
+const MIN_SECTION_LENGTH = 80;
+
+function allEnglish(values: string[]): boolean {
+  return values.every(isEnglish);
+}
+
+export function validateTopicMaterials(
+  topic: TopicMaterials,
+  requestedTopic: TopicPlan,
+  targetBloom: BloomLevel
+): TopicValidationResult {
+  const issues: string[] = [];
+
+  const englishOnly =
+    isEnglish(topic.topic) &&
+    isEnglish(topic.levelTemplate) &&
+    allEnglish(topic.objectives) &&
+    isEnglish(topic.coverage.bloomAlignment) &&
+    isEnglish(topic.coverage.minimumLengthRationale) &&
+    allEnglish(topic.coverage.objectivesAddressed) &&
+    isEnglish(topic.sections.introduction) &&
+    isEnglish(topic.sections.theory) &&
+    allEnglish(topic.sections.examples) &&
+    allEnglish(topic.sections.self_assessment) &&
+    allEnglish(topic.sections.resources) &&
+    topic.sections.exercises_with_solutions.every(
+      (exercise) =>
+        isEnglish(exercise.prompt) &&
+        isEnglish(exercise.solution) &&
+        BloomLevelSchema.safeParse(exercise.bloom_focus).success
+    ) &&
+    isEnglish(topic.subagentNotes.conceptual) &&
+    isEnglish(topic.subagentNotes.examples) &&
+    isEnglish(topic.subagentNotes.exercises) &&
+    isEnglish(topic.subagentNotes.resources) &&
+    isEnglish(topic.subagentNotes.review);
+
+  if (!englishOnly) {
+    issues.push('All topic materials must be provided in English.');
+  }
+
+  const sectionLengths: Record<string, number> = {
+    introduction: topic.sections.introduction.length,
+    theory: topic.sections.theory.length,
+    examples: topic.sections.examples.join(' ').length,
+    exercises: topic.sections.exercises_with_solutions
+      .map((exercise) => `${exercise.prompt} ${exercise.solution}`)
+      .join(' ').length,
+    self_assessment: topic.sections.self_assessment.join(' ').length,
+    resources: topic.sections.resources.join(' ').length,
+  };
+
+  const minLengthOk = Object.values(sectionLengths).every((length) => length >= MIN_SECTION_LENGTH);
+  if (!minLengthOk) {
+    issues.push('Each section must meet the minimum length requirement.');
+  }
+
+  const objectivesCovered = requestedTopic.objectives.every((objective) =>
+    topic.objectives.some((provided) => provided.toLowerCase().includes(objective.toLowerCase())) ||
+    topic.coverage.objectivesAddressed.some((covered) => covered.toLowerCase().includes(objective.toLowerCase()))
+  );
+
+  if (!objectivesCovered) {
+    issues.push('All topic objectives must be explicitly addressed.');
+  }
+
+  const bloomAligned = topic.bloomTarget === targetBloom;
+  if (!bloomAligned) {
+    issues.push('Bloom level alignment is required for each topic.');
+  }
+
+  return {
+    englishOnly,
+    minLengthOk,
+    objectivesCovered,
+    bloomAligned,
+    issues,
+  };
+}
+
+export function validateClassPackage(request: ClassPlanRequest, pkg: ClassPackage): ValidatedClassPackage {
+  const topicsWithValidation: ValidatedTopicMaterials[] = pkg.topics.map((topic) => {
+    const requestedTopic = request.syllabus.find((item) => item.topic.toLowerCase() === topic.topic.toLowerCase());
+    const fallbackTopic: TopicPlan = requestedTopic ?? { topic: topic.topic, objectives: pkg.overallObjectives };
+    return {
+      ...topic,
+      validation: validateTopicMaterials(topic, fallbackTopic, request.bloomLevel),
+    };
+  });
+
+  const blockingIssues = topicsWithValidation
+    .flatMap((topic, index) => topic.validation.issues.map((issue) => `Topic ${index + 1}: ${issue}`));
+
+  const englishOnly =
+    isEnglish(pkg.classTitle) &&
+    isEnglish(pkg.level) &&
+    allEnglish(pkg.overallObjectives) &&
+    topicsWithValidation.every((topic) => topic.validation.englishOnly);
+
+  return {
+    ...pkg,
+    topics: topicsWithValidation,
+    validation: {
+      englishOnly,
+      topicsPassed: topicsWithValidation.filter((topic) => topic.validation.issues.length === 0).length,
+      totalTopics: topicsWithValidation.length,
       blockingIssues,
     },
   };
