@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[EPUB] ${requestId} error`, error);
     const payload: Record<string, unknown> = {
-      error: 'No se pudo generar el EPUB.',
+      error: 'Unable to generate the EPUB.',
       code: 'export-failed',
       requestId,
     };

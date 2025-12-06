@@ -1,66 +1,140 @@
 'use client';
 
 import { useState } from 'react';
-import type { CampaignAngle, CampaignPostWithVideo } from '@/lib/schemas';
+import type { LessonPlanWithValidation, LessonProgramResponse } from '@/lib/schemas';
 
 interface PreviewProps {
-  campaignTitle: string;
-  toneRecipe: string;
-  hookPrinciples: string[];
-  angles: CampaignAngle[];
-  posts: CampaignPostWithVideo[];
-  markdown: string;
-  html: string;
-  meta: {
-    mainTheme: string;
-    audienceProfile: string;
-    campaignGoal: string;
-    brandVoice?: string;
-    callToAction?: string;
-    offerDescription?: string;
-    contextNotes?: string;
-    generatedAt: string;
-  };
+  program: LessonProgramResponse;
 }
 
-type Tab = 'posts' | 'markdown' | 'html';
-
-const tabLabels: Record<Tab, string> = {
-  posts: 'Posts y guiones',
-  markdown: 'Markdown',
-  html: 'Vista',
+const badgeColors = {
+  success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  warning: 'bg-amber-50 text-amber-700 border-amber-200',
+  danger: 'bg-red-50 text-red-700 border-red-200',
 };
 
-export default function Preview({
-  campaignTitle,
-  toneRecipe,
-  hookPrinciples,
-  angles,
-  posts,
-  markdown,
-  html,
-  meta,
-}: PreviewProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('posts');
+function ChecklistBadge({ label, complete }: { label: string; complete: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${
+        complete ? badgeColors.success : badgeColors.warning
+      }`}
+    >
+      <span>{complete ? '✅' : '⚠️'}</span>
+      {label}
+    </span>
+  );
+}
+
+function ComplianceRow({ lesson }: { lesson: LessonPlanWithValidation }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <ChecklistBadge label="Montessori" complete={lesson.validation.montessoriComplete} />
+      <ChecklistBadge label="Constructivist" complete={lesson.validation.constructivistComplete} />
+      <ChecklistBadge label="Critical thinking" complete={lesson.validation.criticalThinkingComplete} />
+      <ChecklistBadge label="English only" complete={lesson.validation.englishOnly} />
+    </div>
+  );
+}
+
+function LessonCard({ lesson, index }: { lesson: LessonPlanWithValidation; index: number }) {
+  return (
+    <div className="bg-white border border-amber-100 shadow-sm rounded-xl p-5 flex flex-col gap-4 print:break-inside-avoid">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-amber-600">Lesson {index + 1}</p>
+          <h4 className="text-xl font-semibold text-slate-900">{lesson.title}</h4>
+        </div>
+        <ComplianceRow lesson={lesson} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+          <h5 className="text-sm font-semibold text-amber-800">Objectives</h5>
+          <ul className="mt-2 space-y-1 text-sm text-slate-800 list-disc list-inside">
+            {lesson.objectives.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+          <h5 className="text-sm font-semibold text-amber-800">Materials</h5>
+          <ul className="mt-2 space-y-1 text-sm text-slate-800 list-disc list-inside">
+            {lesson.materials.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+          <h5 className="text-sm font-semibold text-amber-800">Assessment & reflection</h5>
+          <p className="mt-2 text-sm text-slate-800 leading-relaxed">{lesson.assessment}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center justify-between">
+            <h5 className="text-sm font-semibold text-slate-900">Activities (constructivist phases)</h5>
+            <span className="text-xs text-amber-700 font-semibold">Hands-on required</span>
+          </div>
+          <dl className="mt-3 space-y-2 text-sm text-slate-800">
+            <div>
+              <dt className="font-semibold text-slate-900">Prior knowledge</dt>
+              <dd>{lesson.activities.prior_knowledge}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-900">Exploration</dt>
+              <dd>{lesson.activities.exploration}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-900">Concept building</dt>
+              <dd>{lesson.activities.concept_building}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-900">Reflection</dt>
+              <dd>{lesson.activities.reflection}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center justify-between">
+            <h5 className="text-sm font-semibold text-slate-900">Critical questions</h5>
+            <span className="text-xs text-amber-700 font-semibold">Peer discussion</span>
+          </div>
+          <ul className="mt-3 space-y-2 text-sm text-slate-800 list-disc list-inside">
+            {lesson.critical_questions.map((q, idx) => (
+              <li key={idx}>{q}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {lesson.validation.issues.length > 0 && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
+          <p className="font-semibold">Validation notes</p>
+          <ul className="list-disc list-inside mt-1 space-y-1">
+            {lesson.validation.issues.map((issue, idx) => (
+              <li key={idx}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Preview({ program }: PreviewProps) {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<'pdf' | 'epub' | null>(null);
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      alert('Copiado al portapapeles');
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
   const downloadMarkdown = () => {
     setDownloadError(null);
-    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const blob = new Blob([program.markdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'linkedin-campaign.md';
+    a.download = 'lesson-plan.md';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -75,12 +149,12 @@ export default function Preview({
       const response = await fetch('/api/export/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html }),
+        body: JSON.stringify({ html: program.html }),
       });
 
       if (!response.ok) {
         const contentType = response.headers.get('content-type') ?? '';
-        let message = 'No se pudo generar el PDF.';
+        let message = 'Unable to generate the PDF.';
         if (contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
@@ -96,16 +170,14 @@ export default function Preview({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'linkedin-campaign.pdf';
+      a.download = 'lesson-plan.pdf';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      setDownloadError(
-        error instanceof Error ? error.message : 'No se pudo generar el PDF.'
-      );
+      setDownloadError(error instanceof Error ? error.message : 'Unable to generate the PDF.');
     } finally {
       setDownloading(null);
     }
@@ -116,16 +188,15 @@ export default function Preview({
     setDownloading('epub');
 
     try {
-      const title = campaignTitle || 'LinkedIn Campaign';
       const response = await fetch('/api/export/epub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown, title, meta: { title } }),
+        body: JSON.stringify({ markdown: program.markdown, title: program.weeklyTheme, meta: program.meta }),
       });
 
       if (!response.ok) {
         const contentType = response.headers.get('content-type') ?? '';
-        let message = 'No se pudo generar el EPUB.';
+        let message = 'Unable to generate the EPUB.';
         if (contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
@@ -141,296 +212,120 @@ export default function Preview({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'linkedin-campaign.epub';
+      a.download = 'lesson-plan.epub';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading EPUB:', error);
-      setDownloadError(
-        error instanceof Error ? error.message : 'No se pudo generar el EPUB.'
-      );
+      setDownloadError(error instanceof Error ? error.message : 'Unable to generate the EPUB.');
     } finally {
       setDownloading(null);
     }
   };
 
-  const sortedAngles = [...angles].sort((a, b) => a.id - b.id);
-  const sortedPosts = [...posts].sort((a, b) => a.angleId - b.angleId);
-
   return (
-    <div className="w-full">
-      <div className="grid gap-4 mb-6">
-        <div className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm">
-          <h2 className="text-2xl font-bold text-blue-900 mb-2">{campaignTitle}</h2>
-          <p className="text-sm text-blue-900">
-            <span className="font-semibold">Tema:</span> {meta.mainTheme}
-          </p>
-          <p className="text-sm text-blue-900">
-            <span className="font-semibold">Objetivo:</span> {meta.campaignGoal}
-          </p>
-          <p className="text-sm text-blue-900">
-            <span className="font-semibold">Audiencia:</span> {meta.audienceProfile}
-          </p>
-          {meta.brandVoice ? (
-            <p className="text-sm text-blue-900">
-              <span className="font-semibold">Voz:</span> {meta.brandVoice}
-            </p>
-          ) : null}
-          {meta.callToAction ? (
-            <p className="text-sm text-blue-900">
-              <span className="font-semibold">CTA:</span> {meta.callToAction}
-            </p>
-          ) : null}
-          {meta.offerDescription ? (
-            <p className="text-sm text-blue-900">
-              <span className="font-semibold">Oferta:</span> {meta.offerDescription}
-            </p>
-          ) : null}
-          {meta.contextNotes ? (
-            <p className="text-sm text-blue-900 whitespace-pre-wrap mt-2">
-              <span className="font-semibold">Contexto:</span> {meta.contextNotes}
-            </p>
-          ) : null}
-        </div>
+    <div className="w-full space-y-6">
+      <div className="grid gap-4 print:grid-cols-2 print:items-start">
+        <div className="bg-white border border-amber-100 rounded-xl p-5 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-amber-700 font-semibold">Weekly theme</p>
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">{program.weeklyTheme}</h2>
+          <p className="text-sm text-slate-700 leading-relaxed">{program.overview}</p>
 
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">Receta de tono</h3>
-          <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">{toneRecipe}</p>
-
-          <div className="mt-4">
-            <h4 className="text-sm font-semibold text-blue-800 uppercase tracking-wide">
-              Principios de hook
-            </h4>
-            <ul className="mt-2 space-y-1 text-sm text-blue-900">
-              {hookPrinciples.map((hook, index) => (
-                <li key={index} className="flex gap-2">
-                  <span className="text-blue-600">•</span>
-                  <span>{hook}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-800">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs uppercase tracking-wide text-slate-500">Subject area</span>
+              <span className="font-semibold text-slate-900">{program.meta.subjectArea}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs uppercase tracking-wide text-slate-500">Grade level</span>
+              <span className="font-semibold text-slate-900">{program.meta.gradeLevel}</span>
+            </div>
+            {program.meta.learnerProfile && (
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Learner profile</span>
+                <span className="text-slate-800">{program.meta.learnerProfile}</span>
+              </div>
+            )}
+            {program.meta.constraints && (
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Constraints</span>
+                <span className="text-slate-800">{program.meta.constraints}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Ángulos de la campaña</h3>
-          <div className="space-y-3">
-            {sortedAngles.map((angle) => (
-              <div key={angle.id} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Ángulo {angle.id}</p>
-                    <h4 className="text-base font-semibold text-gray-900">{angle.title}</h4>
-                  </div>
-                  <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                    {angle.postType}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700 mt-2">{angle.promise}</p>
-                <ul className="mt-3 space-y-1 text-sm text-gray-700">
-                  {angle.keyPoints.map((point, index) => (
-                    <li key={index} className="flex gap-2">
-                      <span className="text-blue-500">→</span>
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-gray-500 mt-3">
-                  <span className="font-semibold">Por qué funciona:</span> {angle.whyItWorks}
-                </p>
-              </div>
-            ))}
+        <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 shadow-sm flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-amber-700 font-semibold">Template</p>
+              <p className="text-sm text-slate-700">{program.template.lesson}</p>
+            </div>
+            <div className="flex flex-col items-end gap-1 text-xs text-slate-600">
+              <span className="px-2 py-1 bg-white border border-amber-200 rounded-full font-semibold">English enforced</span>
+              <span className="px-2 py-1 bg-white border border-amber-200 rounded-full font-semibold">
+                Validation: {program.validation.lessonsPassed}/{program.validation.totalLessons} lessons pass
+              </span>
+            </div>
+          </div>
+          {program.validation.blockingIssues.length > 0 && (
+            <div className={`border rounded-lg text-sm p-3 ${badgeColors.danger}`}>
+              <p className="font-semibold">Validation issues</p>
+              <ul className="list-disc list-inside space-y-1">
+                {program.validation.blockingIssues.map((issue, idx) => (
+                  <li key={idx}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <ChecklistBadge label="Montessori" complete={program.lessons.every((l) => l.validation.montessoriComplete)} />
+            <ChecklistBadge
+              label="Constructivist"
+              complete={program.lessons.every((l) => l.validation.constructivistComplete)}
+            />
+            <ChecklistBadge
+              label="Critical thinking"
+              complete={program.lessons.every((l) => l.validation.criticalThinkingComplete)}
+            />
+            <ChecklistBadge label="English only" complete={program.validation.englishOnly} />
           </div>
         </div>
       </div>
 
-      {/* Export Buttons */}
-      <div className="flex gap-2 mb-4 flex-wrap">
+      <div className="flex gap-3 flex-wrap">
         <button
           onClick={downloadMarkdown}
-          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={downloading !== null}
         >
-          Descargar .md
+          Download .md
         </button>
         <button
           onClick={downloadPDF}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={downloading !== null}
         >
-          {downloading === 'pdf' ? 'Generando PDF...' : 'Descargar .pdf'}
+          {downloading === 'pdf' ? 'Generating PDF...' : 'Download .pdf'}
         </button>
         <button
           onClick={downloadEPUB}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={downloading !== null}
         >
-          {downloading === 'epub' ? 'Generando EPUB...' : 'Descargar .epub'}
+          {downloading === 'epub' ? 'Generating EPUB...' : 'Download .epub'}
         </button>
+        {downloadError && (
+          <span className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{downloadError}</span>
+        )}
       </div>
 
-      {downloadError && (
-        <div className="w-full mb-4 px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-          {downloadError}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-4">
-        <nav className="flex gap-4">
-          {(['posts', 'markdown', 'html'] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`py-2 px-4 font-medium border-b-2 transition-colors ${
-                activeTab === tab
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tabLabels[tab]}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      <div className="mt-4">
-        {activeTab === 'posts' && (
-          <div className="space-y-6">
-            {sortedPosts.map((post, index) => (
-              <div key={post.angleId} className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Post {index + 1}</p>
-                    <h4 className="text-lg font-semibold text-gray-900">
-                      {post.angleTitle}
-                    </h4>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => copyToClipboard(post.copyMarkdown)}
-                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
-                    >
-                      Copiar post
-                    </button>
-                    <button
-                      onClick={() => copyToClipboard(post.videoScript.beats.map((beat) => `${beat.order}. ${beat.voiceOver}`).join('\n'))}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
-                    >
-                      Copiar guion
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-4">
-                  <div>
-                    <h5 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                      Hook
-                    </h5>
-                    <p className="text-sm text-gray-800 mt-1">{post.hook}</p>
-                  </div>
-
-                  <div>
-                    <h5 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                      Copy lista para pegar
-                    </h5>
-                    <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm whitespace-pre-wrap">
-{post.copyMarkdown}
-                    </pre>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <h6 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Insight clave
-                      </h6>
-                      <p className="text-sm text-gray-800 mt-1">{post.keyTakeaway}</p>
-                    </div>
-                    <div>
-                      <h6 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        CTA
-                      </h6>
-                      <p className="text-sm text-gray-800 mt-1">{post.callToAction}</p>
-                    </div>
-                    <div>
-                      <h6 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Hashtags
-                      </h6>
-                      <p className="text-sm text-gray-800 mt-1">
-                        {post.hashtags.map((tag) => `#${tag.replace(/^#/, '')}`).join(' ')}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h5 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                      Video script ({post.videoScript.duration})
-                    </h5>
-                    <div className="mt-2 space-y-3">
-                      {post.videoScript.beats.map((beat) => (
-                        <div key={beat.order} className="border border-gray-100 rounded-lg p-3 bg-white">
-                          <p className="text-xs font-semibold text-blue-600">Beat {beat.order}</p>
-                          <p className="text-sm text-gray-900 mt-1">
-                            <span className="font-semibold">Shot:</span> {beat.shot}
-                          </p>
-                          <p className="text-sm text-gray-900 mt-1">
-                            <span className="font-semibold">Voice over:</span> {beat.voiceOver}
-                          </p>
-                          {beat.onScreenText ? (
-                            <p className="text-sm text-gray-900 mt-1">
-                              <span className="font-semibold">On-screen text:</span> {beat.onScreenText}
-                            </p>
-                          ) : null}
-                          <p className="text-sm text-gray-900 mt-1">
-                            <span className="font-semibold">Cámara:</span> {beat.cameraDirection}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 text-sm text-gray-800">
-                      <p>
-                        <span className="font-semibold">Hook hablado:</span> {post.videoScript.hook}
-                      </p>
-                      <p className="mt-1">
-                        <span className="font-semibold">Cierre:</span> {post.videoScript.closing}
-                      </p>
-                      <p className="mt-1">
-                        <span className="font-semibold">CTA final:</span> {post.videoScript.callToAction}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'markdown' && (
-          <div className="relative">
-            <div className="absolute top-2 right-2 flex gap-2">
-              <button
-                onClick={() => copyToClipboard(markdown)}
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200"
-              >
-                Copiar Markdown
-              </button>
-            </div>
-            <pre className="bg-gray-50 p-4 rounded-lg overflow-auto max-h-[600px] text-sm">
-              <code>{markdown}</code>
-            </pre>
-          </div>
-        )}
-
-        {activeTab === 'html' && (
-          <div className="prose max-w-none">
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 max-h-[600px] overflow-y-auto space-y-6">
-              <div dangerouslySetInnerHTML={{ __html: html }} />
-            </div>
-          </div>
-        )}
+      <div className="grid gap-4">
+        {program.lessons.map((lesson, idx) => (
+          <LessonCard key={lesson.title} lesson={lesson} index={idx} />
+        ))}
       </div>
     </div>
   );

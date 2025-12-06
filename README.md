@@ -1,232 +1,165 @@
-# LinkedIn Content Architect
+# Lesson Plan Builder
 
-AI agentic workflow built with Next.js 14 that turns a single tema central into una campaña viral para LinkedIn. El pipeline ahora coordina: Ideation Strategist → Post Writers (×5) → Video Script Producer → Markdown Formatter.
+An AI-assisted workflow built with Next.js 14 that generates five-class weekly lesson plans fully aligned with Montessori, constructivist, and critical-thinking principles. All outputs are in English and include objectives, hands-on activities, materials, and reflective questions, plus automated pedagogy validation and print/export tools.
 
 ## Features
 
-- **Campaign Blueprint Ideation**: Divide el tema principal en cinco ángulos complementarios con promesa, tipo de post y razones estratégicas.
-- **Copy Ready-To-Paste**: Cada ángulo produce un post completo en Markdown con gancho, storytelling, insight clave, CTA y hashtags accionables.
-- **Video Script Layer**: Un productor creativo entrega guiones para video vertical (LinkedIn/Shorts/Reels) sincronizados con cada post.
-- **Export Stack**: Descarga la campaña en `.md`, `.pdf` o `.epub`, o copia al portapapeles tanto el post como el guion.
-- **Progress Tracking**: Indicadores en tiempo real para las etapas de ideation → posts → video → formato editorial.
-- **Markdown + HTML Preview**: Visualiza el deliverable final o trabaja directamente desde el markdown generado.
+- **English-only lesson generation**: System prompts enforce English output with Montessori/constructivist/critical-thinking checklists for every class.
+- **Structured weekly template**: A reusable 5-lesson schema with objectives, materials, constructivist activity phases, critical questions, and assessment notes.
+- **Pedagogy validation**: Automated checks for Montessori (choice, hands-on, self-paced, self-correction), constructivist (prior knowledge, guided discovery, social interaction), and critical-thinking (open questions, evidence-based claims, peer discussion) requirements.
+- **Lesson Plan Builder UI**: Montessori-inspired palette with checklist badges, lesson cards, and inline compliance indicators.
+- **Exports**: Download Markdown/PDF/EPUB or use the print-friendly layout for sharing.
 
-## Tech Stack
+## Data model
 
-- **Next.js 14** (App Router)
-- **TypeScript**
-- **Tailwind CSS**
-- **OpenAI SDK** (with OpenRouter fallback)
-- **Zod** (validation)
-- **Puppeteer-core** + **@sparticuz/chromium** (PDF generation)
-- **epub-gen** (EPUB generation)
-- **marked** (Markdown to HTML conversion)
+```ts
+interface LessonPlan {
+  title: string;
+  objectives: string[];
+  materials: string[];
+  activities: {
+    prior_knowledge: string;
+    exploration: string;
+    concept_building: string;
+    reflection: string;
+  };
+  critical_questions: string[];
+  assessment: string;
+  pedagogy_flags: {
+    montessori: { choice: boolean; hands_on: boolean; self_paced: boolean; self_correction: boolean };
+    constructivist: { link_to_prior_knowledge: boolean; guided_discovery: boolean; social_interaction: boolean };
+    critical: { open_questions: boolean; evidence_based_claims: boolean; peer_discussion: boolean };
+  };
+}
 
-## Prerequisites
+interface WeeklyProgram {
+  weeklyTheme: string;
+  overview: string;
+  template: { lesson: string };
+  lessons: LessonPlan[]; // always 5 lessons
+}
+```
 
-- Node.js 18+ and npm/pnpm/yarn
-- OpenAI API key (or OpenRouter API key as fallback)
+Validation attaches per-lesson and weekly summaries to flag English-only compliance and checklist completion before formatting for export.
+
+## JSON/YAML templates
+
+See `docs/templates/weekly_program.json` and `docs/templates/weekly_program.yaml` for a ready-to-fill 5-lesson weekly schema that mirrors the API contract and validator expectations.
+
+## Tech stack
+
+- **Next.js 14** (App Router) + **TypeScript**
+- **Tailwind CSS** for the Montessori-inspired UI
+- **OpenAI SDK** (with OpenRouter fallback) for lesson generation
+- **Zod** for schema validation
+- **Puppeteer-core** + **@sparticuz/chromium** for PDF export
+- **epub-gen** for EPUB export
+- **marked** for Markdown → HTML rendering
 
 ## Setup
 
-1. **Install dependencies:**
+1. **Install dependencies**
    ```bash
    npm install
-   # or
-   pnpm install
-   # or
-   yarn install
    ```
 
-2. **Configure environment variables:**
-   Create a `.env.local` file in the project root:
+2. **Environment variables** – create `.env.local`:
    ```env
    OPENAI_API_KEY=your_openai_api_key_here
    OPENROUTER_API_KEY=your_openrouter_api_key_here_optional
+   CHROME_EXECUTABLE_PATH=/path/to/chrome   # dev PDF support (optional)
    ```
 
-   For local PDF generation (development), you may also need:
-   ```env
-   CHROME_EXECUTABLE_PATH=/path/to/chrome
-   ```
-
-3. **Run the development server:**
+3. **Run dev server**
    ```bash
    npm run dev
-   # or
-   pnpm dev
-   # or
-   yarn dev
    ```
+   Open [http://localhost:3000](http://localhost:3000).
 
-4. **Open your browser:**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-5. **Run the test suite (optional):**
+4. **Tests**
    ```bash
    npm run test
    ```
 
-## Usage
+## API
 
-1. **Completa el brief:**
-   - Tema central, perfil de audiencia y objetivo de la campaña (obligatorios)
-   - Voz de marca, CTA, oferta a destacar y contexto adicional (opcionales)
+### POST `/api/generate-teaching-guide`
+Generates a validated weekly lesson program (5 lessons).
 
-2. **Genera campaña viral:**
-   - Haz clic en “Generar campaña viral”
-   - Sigue el progreso: ideación de ángulos → redacción de posts → guiones de video → formateo
+**Request body**
+```json
+{
+  "weeklyTheme": "Exploring Ecosystems",
+  "subjectArea": "Science",
+  "gradeLevel": "Upper Elementary",
+  "learnerProfile": "Hands-on learners who like field work",
+  "constraints": "Low-cost, easily sourced materials"
+}
+```
 
-3. **Revisa y exporta:**
-   - Copia los posts y guiones listos para LinkedIn
-   - Explora el Markdown/HTML o descarga en `.md`, `.pdf`, `.epub`
-
-## Architecture
-
-### Workflow Steps
-
-- **Ideation Strategist**: Destila el tema en cinco ángulos poderosos con promesas claras y razones estratégicas.
-- **Post Writers (×5)**: Redactan posts completos en tono LinkedIn listo para copiar y pegar.
-- **Video Script Producer**: Genera guiones verticales sincronizados con cada post.
-- **Formatter**: Entrega el Markdown editorial con resumen ejecutivo, posts y guiones.
- 
- ### File Structure
- 
- ```
-linkedin-content-architect/
-├── app/
-│   ├── page.tsx                      # Main UI
-│   ├── layout.tsx                    # Root layout
-│   ├── globals.css                   # Global styles
-│   └── api/
-│       ├── generate-teaching-guide/
-│       │   └── route.ts              # LinkedIn campaign endpoint
-│       └── export/
-│           ├── pdf/route.ts           # PDF export
-│           └── epub/route.ts          # EPUB export
-├── components/
-│   ├── ChatForm.tsx                  # Campaign brief form
-│   ├── Progress.tsx                  # Stage indicator
-│   └── Preview.tsx                   # Campaign preview
-├── lib/
-│   ├── orchestrator.ts               # Campaign orchestration logic
-│   ├── prompts.ts                    # Role prompts for cada agente
-│   ├── llm.ts                        # OpenAI/OpenRouter wrapper
-│   ├── schemas.ts                    # Zod validation schemas
-│   └── markdown.ts                   # Markdown utilities
-└── docs/
-    └── n8n/
-        └── ebook_creator.json        # Legacy reference
- ```
- 
- ## API Endpoints
- 
- ### POST `/api/generate-teaching-guide`
- Genera una campaña completa de LinkedIn (5 posts + 5 guiones de video).
- 
- **Request Body:**
- ```json
- {
-  "mainTheme": "Cómo liderar la adopción de IA en equipos comerciales",
-  "audienceProfile": "CEOs de empresas SaaS Series A-B en Latam",
-  "campaignGoal": "Agendar 30 demos calificadas en 30 días",
-  "brandVoice": "Voz directa, basada en datos, cero humo corporativo",
-  "callToAction": "Escríbeme \"IA\" por DM y te comparto el playbook",
-  "offerDescription": "Programa 1:1 de aceleración comercial",
-  "contextNotes": "Competimos contra consultoras tradicionales; incluir caso de éxito FinTech X"
- }
- ```
- 
- **Response:**
- ```json
- {
-  "campaignTitle": "Demo Campaign: Escalar ventas B2B con IA",
-  "toneRecipe": "Confianza en primera persona, ritmo rápido, storytelling con datos verificados.",
-  "hookPrinciples": ["Arranca con tensión", "Usa números concretos", "Cierra con comunidad"],
-  "angles": [
+**Response**
+```json
+{
+  "weeklyTheme": "Exploring Ecosystems",
+  "overview": "Concise English overview...",
+  "template": { "lesson": "Objectives, materials, constructivist phases, critical questions, assessment" },
+  "lessons": [
     {
-      "id": 1,
-      "title": "Ángulo 1",
-      "promise": "Promesa 1",
-      "postType": "story",
-      "keyPoints": ["Punto 1", "Punto 2", "Punto 3"],
-      "whyItWorks": "Porque conecta con la urgencia de adopción."
+      "title": "Lesson 1",
+      "objectives": ["..."],
+      "materials": ["..."],
+      "activities": {
+        "prior_knowledge": "...",
+        "exploration": "...",
+        "concept_building": "...",
+        "reflection": "..."
+      },
+      "critical_questions": ["..."],
+      "assessment": "...",
+      "pedagogy_flags": {
+        "montessori": { "choice": true, "hands_on": true, "self_paced": true, "self_correction": true },
+        "constructivist": { "link_to_prior_knowledge": true, "guided_discovery": true, "social_interaction": true },
+        "critical": { "open_questions": true, "evidence_based_claims": true, "peer_discussion": true }
+      },
+      "validation": { "issues": [], "englishOnly": true, "montessoriComplete": true, "constructivistComplete": true, "criticalThinkingComplete": true }
     }
   ],
-  "posts": [
-    {
-      "angleId": 1,
-      "angleTitle": "Ángulo 1",
-      "headline": "Headline 1",
-      "hook": "Hook 1",
-      "copyMarkdown": "...",
-      "keyTakeaway": "Insight 1",
-      "callToAction": "CTA",
-      "hashtags": ["growth", "linkedin"],
-      "videoScript": {
-        "angleId": 1,
-        "title": "Video 1",
-        "hook": "Video hook",
-        "duration": "0:55",
-        "beats": [
-          {
-            "order": 1,
-            "shot": "Shot",
-            "voiceOver": "Texto",
-            "onScreenText": "",
-            "cameraDirection": "Plano medio"
-          }
-        ],
-        "closing": "Cierre",
-        "callToAction": "CTA video"
-      }
-    }
-  ],
+  "validation": {
+    "englishOnly": true,
+    "lessonsPassed": 5,
+    "totalLessons": 5,
+    "blockingIssues": []
+  },
   "markdown": "...",
   "html": "...",
   "meta": {
-    "mainTheme": "...",
-    "audienceProfile": "...",
-    "campaignGoal": "...",
-    "brandVoice": "...",
-    "generatedAt": "..."
+    "subjectArea": "Science",
+    "gradeLevel": "Upper Elementary",
+    "learnerProfile": "Hands-on learners who like field work",
+    "constraints": "Low-cost, easily sourced materials",
+    "generatedAt": "2024-01-01T00:00:00.000Z"
   }
- }
- ```
+}
+```
 
 ### POST `/api/export/pdf`
-Genera un PDF a partir del contenido HTML. En desarrollo, el API detecta automáticamente Google Chrome en macOS, Windows o Linux; si no se encuentra, configura `CHROME_EXECUTABLE_PATH` apuntando al binario correspondiente.
+Generate a PDF from the provided HTML payload.
 
 ### POST `/api/export/epub`
-Generates an EPUB from Markdown content.
+Generate an EPUB from Markdown content.
 
-## Environment Variables
+## Validation rules
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key |
-| `OPENROUTER_API_KEY` | No | OpenRouter API key (fallback) |
-| `CHROME_EXECUTABLE_PATH` | No | Path to Chrome executable (dev only) |
-
-## Troubleshooting
-
-- **Export PDF en desarrollo:** si no tienes Chrome instalado, instala Google Chrome o especifica manualmente `CHROME_EXECUTABLE_PATH`. En producción (Vercel) se usa automáticamente `@sparticuz/chromium`.
-- **Documento demasiado grande:** los exports de PDF/EPUB limitan el contenido a ~500 KB. Reduce extensiones o divide la secuencia si recibes un error `payload-too-large`.
-- **Fallos en la guía generada:** revisa que `OPENAI_API_KEY` esté configurada y vuelve a intentar. Los mensajes incluyen `requestId` para depurar en los logs del servidor.
-- **Pruebas unitarias:** ejecuta `npm run test`. Si Vitest no está instalado aún, ejecuta `npm install` para descargar las nuevas dependencias.
+- Rejects lessons missing objectives, materials, constructivist phases, critical questions, or pedagogy checklist items.
+- Enforces English-only content (accents and non-ASCII Spanish characters are blocked).
+- Blocks weekly plans unless all five lessons pass Montessori, constructivist, and critical-thinking checks.
 
 ## Testing
 
-La suite de pruebas se ejecuta con [Vitest](https://vitest.dev/) y cubre validaciones de los esquemas Zod y el flujo del orquestador con funciones LLM simuladas.
+Run the Vitest suite:
 
 ```bash
 npm run test
 ```
 
-Se generará un reporte de cobertura en la carpeta `coverage/` cuando ejecutes la suite localmente.
-
-## License
-
-MIT
-
-
+A coverage report is generated locally in `coverage/`.

@@ -1,20 +1,14 @@
 import OpenAI from 'openai';
 import type { ZodSchema } from 'zod';
+import { WEEKLY_LESSON_SYSTEM_PROMPT, WEEKLY_MARKDOWN_FORMAT_PROMPT } from './prompts';
 import {
-  CampaignBlueprint,
-  CampaignBlueprintSchema,
-  CampaignInput,
-  LinkedInPost,
-  LinkedInPostSchema,
-  VideoScript,
-  VideoScriptSchema,
+  LessonPlanInput,
+  LessonPlanInputSchema,
+  ValidatedWeeklyProgram,
+  WeeklyProgram,
+  WeeklyProgramSchema,
+  validateWeeklyProgram,
 } from './schemas';
-import {
-  CAMPAIGN_FORMATTER_PROMPT,
-  CAMPAIGN_IDEATOR_PROMPT,
-  LINKEDIN_POST_PROMPT,
-  VIDEO_SCRIPT_PROMPT,
-} from './prompts';
 
 const MAX_LLM_ATTEMPTS = 3;
 const RETRY_BASE_DELAY_MS = 500;
@@ -220,152 +214,33 @@ function parseWithSchema<T>(
   }
 }
 
-export async function generateCampaignBlueprint(
-  input: CampaignInput
-): Promise<CampaignBlueprint> {
-  const prompt = `Tema central de la campaña: ${input.mainTheme}
-Objetivo estratégico: ${input.campaignGoal}
-Perfil de audiencia: ${input.audienceProfile}
-Voz de marca deseada: ${input.brandVoice ?? 'No especificada; define una voz humana, directa y profesional.'}
-CTA obligatorio: ${input.callToAction ?? 'Debe cerrar invitando a conversar, comentar o escribir al autor.'}
-Oferta o producto a destacar: ${input.offerDescription ?? 'No hay oferta específica, enfócate en aportar valor y posicionar autoridad.'}
-Notas contextuales: ${input.contextNotes ?? 'Sin notas adicionales.'}
+export async function generateWeeklyProgram(input: LessonPlanInput): Promise<ValidatedWeeklyProgram> {
+  const prompt = `Weekly theme: ${input.weeklyTheme}\nSubject area: ${input.subjectArea}\nGrade level: ${input.gradeLevel}\nLearner profile: ${input.learnerProfile ?? 'Not provided; assume mixed readiness with opportunities for choice.'}\nConstraints: ${input.constraints ?? 'None provided; keep materials lightweight and classroom-ready.'}`;
 
-Entrega cinco ángulos únicos y accionables para una campaña de LinkedIn.`;
+  const response = await generateText(prompt, WEEKLY_LESSON_SYSTEM_PROMPT, 'gpt-4o-mini', true);
 
-  const response = await generateText(
-    prompt,
-    CAMPAIGN_IDEATOR_PROMPT,
-    'gpt-4o-mini',
-    true
-  );
-
-  return parseWithSchema(response, CampaignBlueprintSchema, {
+  const structuredPlan: WeeklyProgram = parseWithSchema(response, WeeklyProgramSchema, {
     provider: 'openai',
-    stage: 'campaign-blueprint',
+    stage: 'weekly-plan',
   });
-}
 
-export async function generateLinkedInPostCopy(
-  blueprint: CampaignBlueprint,
-  angleId: number,
-  input: CampaignInput
-): Promise<LinkedInPost> {
-  const angle = blueprint.angles.find((item) => item.id === angleId);
-  if (!angle) {
-    throw new LLMServiceError(`Angle ${angleId} not found in blueprint`, 'invalid-json', {
-      stage: 'post-copy',
+  const validated = validateWeeklyProgram(structuredPlan);
+  if (validated.validation.blockingIssues.length > 0) {
+    throw new LLMServiceError('Lesson plan failed pedagogy validation', 'schema-validation', {
+      issues: validated.validation.blockingIssues,
     });
   }
 
-  const prompt = `Tema central: ${input.mainTheme}
-Objetivo: ${input.campaignGoal}
-Audiencia: ${input.audienceProfile}
-Receta de tono: ${blueprint.toneRecipe}
-Principios de hook: ${blueprint.hookPrinciples.join(' | ')}
-
-Ángulo asignado (id ${angle.id}):
-- Título: ${angle.title}
-- Promesa: ${angle.promise}
-- Tipo de post: ${angle.postType}
-- Por qué funciona: ${angle.whyItWorks}
-- Puntos clave:
-${angle.keyPoints.map((point, index) => `  ${index + 1}. ${point}`).join('\n')}
-
-CTA deseado: ${input.callToAction ?? 'Invita a comentar, compartir y establecer contacto directo.'}
-Oferta/producto: ${input.offerDescription ?? 'No hay venta directa; demuestra autoridad y valor práctico.'}
-
-Redacta el post completo siguiendo la estructura solicitada.`;
-
-  const response = await generateText(
-    prompt,
-    LINKEDIN_POST_PROMPT,
-    'gpt-4o-mini',
-    true
-  );
-
-  return parseWithSchema(response, LinkedInPostSchema, {
-    provider: 'openai',
-    stage: 'post-copy',
-  });
+  return validated;
 }
 
-export async function generateVideoScriptForPost(
-  blueprint: CampaignBlueprint,
-  post: LinkedInPost,
-  input: CampaignInput
-): Promise<VideoScript> {
-  const angle = blueprint.angles.find((item) => item.id === post.angleId);
-  const prompt = `Transforma el siguiente post viral de LinkedIn en un guion de video vertical.
+export async function formatWeeklyMarkdown(program: ValidatedWeeklyProgram): Promise<string> {
+  const prompt = JSON.stringify(program, null, 2);
 
-Tema central: ${input.mainTheme}
-Ángulo: ${angle ? angle.title : post.angleTitle}
-Promesa del ángulo: ${angle ? angle.promise : 'Usa la misma promesa del post.'}
-Tono deseado: ${blueprint.toneRecipe}
-Objetivo de campaña: ${input.campaignGoal}
-CTA preferido: ${post.callToAction}
-
-Hook del post: ${post.hook}
-Headline: ${post.headline}
-Copy completo:
-${post.copyMarkdown}
-
-Entrega el guion respetando la estructura solicitada.`;
-
-  const response = await generateText(
-    prompt,
-    VIDEO_SCRIPT_PROMPT,
-    'gpt-4o-mini',
-    true
-  );
-
-  return parseWithSchema(response, VideoScriptSchema, {
-    provider: 'openai',
-    stage: 'video-script',
-  });
-}
-
-export async function formatCampaignMarkdown(payload: {
-  blueprint: CampaignBlueprint;
-  posts: Array<LinkedInPost & { videoScript: VideoScript }>;
-  input: CampaignInput;
-}): Promise<string> {
-  const summaryBlock = {
-    theme: payload.input.mainTheme,
-    goal: payload.input.campaignGoal,
-    audience: payload.input.audienceProfile,
-    tone: payload.blueprint.toneRecipe,
-    hooks: payload.blueprint.hookPrinciples,
-  };
-
-  const postBlocks = payload.posts.map((post, index) => ({
-    order: index + 1,
-    angleId: post.angleId,
-    angleTitle: post.angleTitle,
-    headline: post.headline,
-    hook: post.hook,
-    copyMarkdown: post.copyMarkdown,
-    callToAction: post.callToAction,
-    hashtags: post.hashtags,
-    keyTakeaway: post.keyTakeaway,
-    videoScript: post.videoScript,
-  }));
-
-  const prompt = `Resumen ejecutivo:
-${JSON.stringify(summaryBlock, null, 2)}
-
-Posts listos:
-${JSON.stringify(postBlocks, null, 2)}
-
-Genera el Markdown final siguiendo exactamente la guía.`;
-
-  const response = await generateText(
-    prompt,
-    CAMPAIGN_FORMATTER_PROMPT,
-    'gpt-4o-mini',
-    false
-  );
-
+  const response = await generateText(prompt, WEEKLY_MARKDOWN_FORMAT_PROMPT, 'gpt-4o-mini', false);
   return response.trim();
 }
 
+export function parseLessonPlanInput(body: unknown): LessonPlanInput {
+  return LessonPlanInputSchema.parse(body);
+}
