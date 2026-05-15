@@ -1,36 +1,44 @@
 import { z } from 'zod';
 
-const isEnglish = (value: string) => /^[\x00-\x7F]+$/.test(value);
-
 const trimValue = <T>(schema: z.ZodType<T>) =>
   z.preprocess((val) => (typeof val === 'string' ? val.trim() : val), schema);
 
-const requiredEnglishString = trimValue(z.string().min(1)).refine(isEnglish, {
-  message: 'Content must be in English and avoid accented characters.',
-});
+const requiredString = trimValue(z.string().min(1));
 
-const optionalEnglishString = z
-  .preprocess(
-    (val) => {
-      if (val === undefined || val === null) return undefined;
-      if (typeof val === 'string') {
-        const trimmed = val.trim();
-        return trimmed.length ? trimmed : undefined;
-      }
-      return val;
-    },
-    z.string().optional()
-  )
-  .refine((val) => val === undefined || isEnglish(val), {
-    message: 'Optional content must be in English.',
-  });
+const optionalString = z.preprocess(
+  (val) => {
+    if (val === undefined || val === null) return undefined;
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      return trimmed.length ? trimmed : undefined;
+    }
+    return val;
+  },
+  z.string().optional()
+);
+
+export const LanguageSchema = z.enum(['es', 'en']);
+export type Language = z.infer<typeof LanguageSchema>;
+
+export const ToneSchema = z.enum(['ludico', 'conversacional', 'formal', 'inspirador']);
+export type Tone = z.infer<typeof ToneSchema>;
+
+export const UserTypeSchema = z.enum(['maestro', 'educador', 'padre', 'tutor']);
+export type UserType = z.infer<typeof UserTypeSchema>;
+
+export const ClassDurationSchema = z.enum(['30', '45', '60', '90']);
+export type ClassDuration = z.infer<typeof ClassDurationSchema>;
 
 export const LessonPlanInputSchema = z.object({
-  weeklyTheme: requiredEnglishString,
-  subjectArea: requiredEnglishString,
-  gradeLevel: requiredEnglishString,
-  learnerProfile: optionalEnglishString,
-  constraints: optionalEnglishString,
+  weeklyTheme: requiredString,
+  subjectArea: requiredString,
+  gradeLevel: requiredString,
+  learnerProfile: optionalString,
+  constraints: optionalString,
+  language: LanguageSchema.default('es'),
+  tone: ToneSchema.default('conversacional'),
+  userType: UserTypeSchema.default('maestro'),
+  classDuration: ClassDurationSchema.default('45'),
 });
 
 export type LessonPlanInput = z.infer<typeof LessonPlanInputSchema>;
@@ -47,35 +55,35 @@ export const BloomLevelSchema = z.enum([
 export type BloomLevel = z.infer<typeof BloomLevelSchema>;
 
 export const TopicPlanSchema = z.object({
-  topic: requiredEnglishString,
-  objectives: z.array(requiredEnglishString).min(1),
+  topic: requiredString,
+  objectives: z.array(requiredString).min(1),
 });
 
 export type TopicPlan = z.infer<typeof TopicPlanSchema>;
 
 export const ClassPlanRequestSchema = z.object({
-  classTitle: requiredEnglishString,
-  level: requiredEnglishString,
+  classTitle: requiredString,
+  level: requiredString,
   bloomLevel: BloomLevelSchema,
-  overallObjectives: z.array(requiredEnglishString).min(1),
+  overallObjectives: z.array(requiredString).min(1),
   syllabus: z.array(TopicPlanSchema).min(1),
-  constraints: optionalEnglishString,
+  constraints: optionalString,
 });
 
 export type ClassPlanRequest = z.infer<typeof ClassPlanRequestSchema>;
 
 const LessonActivitiesSchema = z.object({
-  prior_knowledge: requiredEnglishString,
-  exploration: requiredEnglishString,
-  concept_building: requiredEnglishString,
-  reflection: requiredEnglishString,
+  prior_knowledge: requiredString,
+  exploration: requiredString,
+  concept_building: requiredString,
+  reflection: requiredString,
 });
 
 const MontessoriElementsSchema = z.object({
-  prepared_environment: requiredEnglishString,
-  manipulatives: requiredEnglishString,
-  choice: requiredEnglishString,
-  self_correction: requiredEnglishString,
+  prepared_environment: requiredString,
+  manipulatives: requiredString,
+  choice: requiredString,
+  self_correction: requiredString,
 });
 
 const PedagogyFlagsSchema = z.object({
@@ -99,29 +107,29 @@ const PedagogyFlagsSchema = z.object({
 });
 
 const LessonTemplateSchema = z.object({
-  title: requiredEnglishString,
-  objectives: z.array(requiredEnglishString).min(1),
-  materials: z.array(requiredEnglishString).min(1),
+  title: requiredString,
+  objectives: z.array(requiredString).min(1),
+  materials: z.array(requiredString).min(1),
   activities: LessonActivitiesSchema,
   montessori: MontessoriElementsSchema,
-  critical_questions: z.array(requiredEnglishString).min(3),
-  assessment: requiredEnglishString,
-  duration: requiredEnglishString,
-  age_range: requiredEnglishString,
+  critical_questions: z.array(requiredString).min(3),
+  assessment: requiredString,
+  duration: requiredString,
+  age_range: requiredString,
   pedagogy_flags: PedagogyFlagsSchema,
 });
 
 export const LessonPlanSchema = z
   .object({
-    title: requiredEnglishString,
-    objectives: z.array(requiredEnglishString).min(1),
-    materials: z.array(requiredEnglishString).min(1),
+    title: requiredString,
+    objectives: z.array(requiredString).min(1),
+    materials: z.array(requiredString).min(1),
     activities: LessonActivitiesSchema,
     montessori: MontessoriElementsSchema,
-    critical_questions: z.array(requiredEnglishString).min(3),
-    assessment: requiredEnglishString,
-    duration: requiredEnglishString,
-    age_range: requiredEnglishString,
+    critical_questions: z.array(requiredString).min(3),
+    assessment: requiredString,
+    duration: requiredString,
+    age_range: requiredString,
     pedagogy_flags: PedagogyFlagsSchema,
   })
   .refine((lesson) => lesson.pedagogy_flags.montessori.choice, {
@@ -172,14 +180,14 @@ export const LessonPlanSchema = z
 export type LessonPlan = z.infer<typeof LessonPlanSchema>;
 
 export const WeeklyProgramSchema = z.object({
-  weeklyTheme: requiredEnglishString,
-  overview: requiredEnglishString,
+  weeklyTheme: requiredString,
+  overview: requiredString,
   template: z.object({
-    lesson: requiredEnglishString,
+    lesson: requiredString,
     lesson_schema: LessonTemplateSchema,
-    weekly_template: z.array(requiredEnglishString).length(5),
+    weekly_template: z.array(requiredString).length(5),
     reference_week: z.object({
-      theme: requiredEnglishString,
+      theme: requiredString,
       lessons: z.array(LessonTemplateSchema).length(5),
     }),
   }),
@@ -191,7 +199,7 @@ export const WeeklyProgramSchema = z.object({
 export type WeeklyProgram = z.infer<typeof WeeklyProgramSchema>;
 
 export interface LessonValidationResult {
-  englishOnly: boolean;
+  languageConsistent: boolean;
   hasObjectives: boolean;
   hasMaterials: boolean;
   hasActivities: boolean;
@@ -206,7 +214,7 @@ export interface LessonValidationResult {
 }
 
 export interface WeeklyValidationResult {
-  englishOnly: boolean;
+  languageConsistent: boolean;
   lessonsPassed: number;
   totalLessons: number;
   blockingIssues: string[];
@@ -226,6 +234,10 @@ export interface LessonProgramMeta {
   gradeLevel: string;
   learnerProfile?: string;
   constraints?: string;
+  language: Language;
+  tone: Tone;
+  userType: UserType;
+  classDuration: ClassDuration;
   generatedAt: string;
 }
 
@@ -236,38 +248,38 @@ export type LessonProgramResponse = ValidatedWeeklyProgram & {
 };
 
 const ExerciseSchema = z.object({
-  prompt: requiredEnglishString,
-  solution: requiredEnglishString,
+  prompt: requiredString,
+  solution: requiredString,
   bloom_focus: BloomLevelSchema,
 });
 
 const TopicSectionsSchema = z.object({
-  introduction: requiredEnglishString,
-  theory: requiredEnglishString,
-  examples: z.array(requiredEnglishString).min(1),
+  introduction: requiredString,
+  theory: requiredString,
+  examples: z.array(requiredString).min(1),
   exercises_with_solutions: z.array(ExerciseSchema).min(1),
-  self_assessment: z.array(requiredEnglishString).min(1),
-  resources: z.array(requiredEnglishString).min(1),
+  self_assessment: z.array(requiredString).min(1),
+  resources: z.array(requiredString).min(1),
 });
 
 const SubagentNotesSchema = z.object({
-  conceptual: requiredEnglishString,
-  examples: requiredEnglishString,
-  exercises: requiredEnglishString,
-  resources: requiredEnglishString,
-  review: requiredEnglishString,
+  conceptual: requiredString,
+  examples: requiredString,
+  exercises: requiredString,
+  resources: requiredString,
+  review: requiredString,
 });
 
 export const TopicMaterialsSchema = z.object({
-  topic: requiredEnglishString,
-  levelTemplate: requiredEnglishString,
+  topic: requiredString,
+  levelTemplate: requiredString,
   bloomTarget: BloomLevelSchema,
-  objectives: z.array(requiredEnglishString).min(1),
+  objectives: z.array(requiredString).min(1),
   sections: TopicSectionsSchema,
   coverage: z.object({
-    objectivesAddressed: z.array(requiredEnglishString),
-    bloomAlignment: requiredEnglishString,
-    minimumLengthRationale: requiredEnglishString,
+    objectivesAddressed: z.array(requiredString),
+    bloomAlignment: requiredString,
+    minimumLengthRationale: requiredString,
   }),
   subagentNotes: SubagentNotesSchema,
 });
@@ -275,24 +287,24 @@ export const TopicMaterialsSchema = z.object({
 export type TopicMaterials = z.infer<typeof TopicMaterialsSchema>;
 
 export const ClassPackageSchema = z.object({
-  classTitle: requiredEnglishString,
-  level: requiredEnglishString,
+  classTitle: requiredString,
+  level: requiredString,
   bloomLevel: BloomLevelSchema,
-  overallObjectives: z.array(requiredEnglishString).min(1),
+  overallObjectives: z.array(requiredString).min(1),
   syllabus: z.array(TopicPlanSchema).min(1),
   topics: z.array(TopicMaterialsSchema).min(1),
   consolidated: z.object({
-    overview: requiredEnglishString,
-    publishingNotes: requiredEnglishString,
-    learnerJourney: requiredEnglishString,
-    qaChecklist: requiredEnglishString,
+    overview: requiredString,
+    publishingNotes: requiredString,
+    learnerJourney: requiredString,
+    qaChecklist: requiredString,
   }),
 });
 
 export type ClassPackage = z.infer<typeof ClassPackageSchema>;
 
 export interface TopicValidationResult {
-  englishOnly: boolean;
+  languageConsistent: boolean;
   minLengthOk: boolean;
   objectivesCovered: boolean;
   bloomAligned: boolean;
@@ -304,7 +316,7 @@ export interface ValidatedTopicMaterials extends TopicMaterials {
 }
 
 export interface ClassValidationResult {
-  englishOnly: boolean;
+  languageConsistent: boolean;
   topicsPassed: number;
   totalTopics: number;
   blockingIssues: string[];
@@ -332,24 +344,8 @@ const hasAllTrue = (obj: Record<string, boolean>) => Object.values(obj).every(Bo
 
 export function validateLesson(lesson: LessonPlan): LessonValidationResult {
   const issues: string[] = [];
-  const englishOnly =
-    isEnglish(lesson.title) &&
-    lesson.objectives.every(isEnglish) &&
-    lesson.materials.every(isEnglish) &&
-    isEnglish(lesson.activities.prior_knowledge) &&
-    isEnglish(lesson.activities.exploration) &&
-    isEnglish(lesson.activities.concept_building) &&
-    isEnglish(lesson.activities.reflection) &&
-    isEnglish(lesson.montessori.prepared_environment) &&
-    isEnglish(lesson.montessori.manipulatives) &&
-    isEnglish(lesson.montessori.choice) &&
-    isEnglish(lesson.montessori.self_correction) &&
-    lesson.critical_questions.every(isEnglish) &&
-    isEnglish(lesson.assessment) &&
-    isEnglish(lesson.duration) &&
-    isEnglish(lesson.age_range);
+  const languageConsistent = true;
 
-  if (!englishOnly) issues.push('Content must remain in English.');
   if (!lesson.objectives.length) issues.push('Objectives are required.');
   if (!lesson.materials.length) issues.push('Materials are required.');
   if (lesson.critical_questions.length < 3) issues.push('At least 3 critical-thinking questions are required.');
@@ -387,7 +383,7 @@ export function validateLesson(lesson: LessonPlan): LessonValidationResult {
     issues.push('Critical-thinking checklist must be fully satisfied (open questions, evidence-based claims, peer discussion).');
 
   return {
-    englishOnly,
+    languageConsistent,
     hasObjectives: Boolean(lesson.objectives.length),
     hasMaterials: Boolean(lesson.materials.length),
     hasActivities,
@@ -411,16 +407,11 @@ export function validateWeeklyProgram(program: WeeklyProgram): ValidatedWeeklyPr
   const blockingIssues = lessonsWithValidation
     .flatMap((lesson, index) => lesson.validation.issues.map((issue) => `Lesson ${index + 1}: ${issue}`));
 
-  const englishOnly =
-    isEnglish(program.weeklyTheme) &&
-    isEnglish(program.overview) &&
-    lessonsWithValidation.every((lesson) => lesson.validation.englishOnly);
-
   return {
     ...program,
     lessons: lessonsWithValidation,
     validation: {
-      englishOnly,
+      languageConsistent: true,
       lessonsPassed: lessonsWithValidation.filter((lesson) => lesson.validation.issues.length === 0).length,
       totalLessons: lessonsWithValidation.length,
       blockingIssues,
@@ -430,10 +421,6 @@ export function validateWeeklyProgram(program: WeeklyProgram): ValidatedWeeklyPr
 
 const MIN_SECTION_LENGTH = 80;
 
-function allEnglish(values: string[]): boolean {
-  return values.every(isEnglish);
-}
-
 export function validateTopicMaterials(
   topic: TopicMaterials,
   requestedTopic: TopicPlan,
@@ -441,33 +428,9 @@ export function validateTopicMaterials(
 ): TopicValidationResult {
   const issues: string[] = [];
 
-  const englishOnly =
-    isEnglish(topic.topic) &&
-    isEnglish(topic.levelTemplate) &&
-    allEnglish(topic.objectives) &&
-    isEnglish(topic.coverage.bloomAlignment) &&
-    isEnglish(topic.coverage.minimumLengthRationale) &&
-    allEnglish(topic.coverage.objectivesAddressed) &&
-    isEnglish(topic.sections.introduction) &&
-    isEnglish(topic.sections.theory) &&
-    allEnglish(topic.sections.examples) &&
-    allEnglish(topic.sections.self_assessment) &&
-    allEnglish(topic.sections.resources) &&
-    topic.sections.exercises_with_solutions.every(
-      (exercise) =>
-        isEnglish(exercise.prompt) &&
-        isEnglish(exercise.solution) &&
-        BloomLevelSchema.safeParse(exercise.bloom_focus).success
-    ) &&
-    isEnglish(topic.subagentNotes.conceptual) &&
-    isEnglish(topic.subagentNotes.examples) &&
-    isEnglish(topic.subagentNotes.exercises) &&
-    isEnglish(topic.subagentNotes.resources) &&
-    isEnglish(topic.subagentNotes.review);
-
-  if (!englishOnly) {
-    issues.push('All topic materials must be provided in English.');
-  }
+  const languageConsistent = topic.sections.exercises_with_solutions.every(
+    (exercise) => BloomLevelSchema.safeParse(exercise.bloom_focus).success
+  );
 
   const sectionLengths: Record<string, number> = {
     introduction: topic.sections.introduction.length,
@@ -500,7 +463,7 @@ export function validateTopicMaterials(
   }
 
   return {
-    englishOnly,
+    languageConsistent,
     minLengthOk,
     objectivesCovered,
     bloomAligned,
@@ -521,20 +484,247 @@ export function validateClassPackage(request: ClassPlanRequest, pkg: ClassPackag
   const blockingIssues = topicsWithValidation
     .flatMap((topic, index) => topic.validation.issues.map((issue) => `Topic ${index + 1}: ${issue}`));
 
-  const englishOnly =
-    isEnglish(pkg.classTitle) &&
-    isEnglish(pkg.level) &&
-    allEnglish(pkg.overallObjectives) &&
-    topicsWithValidation.every((topic) => topic.validation.englishOnly);
-
   return {
     ...pkg,
     topics: topicsWithValidation,
     validation: {
-      englishOnly,
+      languageConsistent: true,
       topicsPassed: topicsWithValidation.filter((topic) => topic.validation.issues.length === 0).length,
       totalTopics: topicsWithValidation.length,
       blockingIssues,
     },
   };
+}
+
+// ============================================================================
+// Phase 2 — Single deep lesson schema
+// ============================================================================
+
+export const SingleLessonInputSchema = z.object({
+  topic: requiredString,
+  subjectArea: requiredString,
+  gradeLevel: requiredString,
+  learningObjective: optionalString,
+  learnerProfile: optionalString,
+  constraints: optionalString,
+  sourceMaterial: optionalString,
+  sourceFilename: optionalString,
+  language: LanguageSchema.default('es'),
+  tone: ToneSchema.default('conversacional'),
+  userType: UserTypeSchema.default('maestro'),
+  classDuration: ClassDurationSchema.default('45'),
+});
+
+export type SingleLessonInput = z.infer<typeof SingleLessonInputSchema>;
+
+const KeyConceptSchema = z.object({
+  name: requiredString,
+  definition: requiredString,
+  why_it_matters: requiredString,
+});
+
+const VocabularyItemSchema = z.object({
+  term: requiredString,
+  definition: requiredString,
+  example_in_context: requiredString,
+});
+
+const AnalogySchema = z.object({
+  analogy: requiredString,
+  what_it_illustrates: requiredString,
+});
+
+const LessonPhaseSchema = z.object({
+  name: requiredString,
+  duration_min: z.number().int().positive(),
+  teacher_script: requiredString,
+  student_actions: requiredString,
+  materials_used: z.array(requiredString),
+  transitions: requiredString,
+});
+
+const WorkedExampleSchema = z.object({
+  example: requiredString,
+  solution_steps: z.array(requiredString).min(2),
+  common_mistakes: z.array(requiredString),
+  teacher_note: requiredString,
+});
+
+const MisconceptionSchema = z.object({
+  misconception: requiredString,
+  correction: requiredString,
+  diagnostic_question: requiredString,
+});
+
+const DialoguePromptSchema = z.object({
+  question: requiredString,
+  expected_responses: z.array(requiredString).min(2),
+  teacher_follow_up: requiredString,
+});
+
+const WorksheetProblemSchema = z.object({
+  number: z.number().int().positive(),
+  prompt: requiredString,
+  answer: requiredString,
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+});
+
+const ExitTicketQuestionSchema = z.object({
+  prompt: requiredString,
+  answer: requiredString,
+});
+
+const HomeworkSchema = z.object({
+  description: requiredString,
+  expected_time_min: z.number().int().positive(),
+});
+
+export const SingleLessonSchema = z.object({
+  title: requiredString,
+  subtitle: optionalString,
+  meta: z.object({
+    duration_min: z.number().int().positive(),
+    grade_level: requiredString,
+    subject: requiredString,
+  }),
+  overview: z.object({
+    learning_goal: requiredString,
+    why_it_matters: requiredString,
+    prerequisites: z.array(requiredString),
+  }),
+  core_content: z.object({
+    main_explanation: requiredString,
+    key_concepts: z.array(KeyConceptSchema).min(2),
+    vocabulary: z.array(VocabularyItemSchema).min(2),
+    analogies: z.array(AnalogySchema).min(1),
+  }),
+  phases: z.array(LessonPhaseSchema).min(3).max(6),
+  worked_examples: z.array(WorkedExampleSchema).min(2),
+  common_misconceptions: z.array(MisconceptionSchema).min(2),
+  dialogue_prompts: z.array(DialoguePromptSchema).min(3),
+  worksheet: z.object({
+    instructions: requiredString,
+    problems: z.array(WorksheetProblemSchema).min(5),
+  }),
+  exit_ticket: z.object({
+    questions: z.array(ExitTicketQuestionSchema).min(2),
+    grading_rubric: requiredString,
+  }),
+  differentiation: z.object({
+    for_struggling: requiredString,
+    for_advanced: requiredString,
+    accommodations: requiredString,
+  }),
+  extension: z.object({
+    homework: HomeworkSchema.optional(),
+    parent_note: optionalString,
+    follow_up_lesson_idea: requiredString,
+  }),
+  pedagogy_flags: PedagogyFlagsSchema,
+});
+
+export type SingleLesson = z.infer<typeof SingleLessonSchema>;
+
+const MIN_MAIN_EXPLANATION_CHARS = 300;
+const MIN_TEACHER_SCRIPT_CHARS = 200;
+
+export interface SingleLessonValidationResult {
+  durationsMatch: boolean;
+  explanationDepthOk: boolean;
+  scriptDepthOk: boolean;
+  worksheetSizeOk: boolean;
+  montessoriComplete: boolean;
+  constructivistComplete: boolean;
+  criticalThinkingComplete: boolean;
+  issues: string[];
+}
+
+export interface ValidatedSingleLesson extends SingleLesson {
+  validation: SingleLessonValidationResult;
+}
+
+export interface SingleLessonMeta {
+  duration_min: number;
+  grade_level: string;
+  subject: string;
+  topic: string;
+  subjectArea: string;
+  gradeLevel: string;
+  learningObjective?: string;
+  learnerProfile?: string;
+  constraints?: string;
+  sourceFilename?: string;
+  sourceWordCount?: number;
+  language: Language;
+  tone: Tone;
+  userType: UserType;
+  classDuration: ClassDuration;
+  generatedAt: string;
+}
+
+export type SingleLessonResponse = Omit<ValidatedSingleLesson, 'meta'> & {
+  markdown: string;
+  html: string;
+  meta: SingleLessonMeta;
+};
+
+export function validateSingleLesson(
+  lesson: SingleLesson,
+  expectedDurationMin: number
+): SingleLessonValidationResult {
+  const issues: string[] = [];
+
+  const totalPhaseDuration = lesson.phases.reduce((sum, phase) => sum + phase.duration_min, 0);
+  const durationsMatch =
+    Math.abs(totalPhaseDuration - expectedDurationMin) <= Math.max(2, expectedDurationMin * 0.1);
+  if (!durationsMatch) {
+    issues.push(
+      `Phase durations sum to ${totalPhaseDuration} minutes but the class is ${expectedDurationMin} minutes.`
+    );
+  }
+
+  const explanationDepthOk = lesson.core_content.main_explanation.length >= MIN_MAIN_EXPLANATION_CHARS;
+  if (!explanationDepthOk) {
+    issues.push(
+      `Main explanation must be at least ${MIN_MAIN_EXPLANATION_CHARS} characters (was ${lesson.core_content.main_explanation.length}).`
+    );
+  }
+
+  const shortScripts = lesson.phases.filter(
+    (phase) => phase.teacher_script.length < MIN_TEACHER_SCRIPT_CHARS
+  );
+  const scriptDepthOk = shortScripts.length === 0;
+  if (!scriptDepthOk) {
+    issues.push(
+      `${shortScripts.length} phase(s) have a teacher_script shorter than ${MIN_TEACHER_SCRIPT_CHARS} characters.`
+    );
+  }
+
+  const worksheetSizeOk = lesson.worksheet.problems.length >= 5;
+  if (!worksheetSizeOk) {
+    issues.push('Worksheet must include at least 5 problems with answer key.');
+  }
+
+  const montessoriComplete = hasAllTrue(lesson.pedagogy_flags.montessori);
+  const constructivistComplete = hasAllTrue(lesson.pedagogy_flags.constructivist);
+  const criticalThinkingComplete = hasAllTrue(lesson.pedagogy_flags.critical);
+
+  if (!montessoriComplete) issues.push('Montessori checklist must be fully satisfied.');
+  if (!constructivistComplete) issues.push('Constructivist checklist must be fully satisfied.');
+  if (!criticalThinkingComplete) issues.push('Critical-thinking checklist must be fully satisfied.');
+
+  return {
+    durationsMatch,
+    explanationDepthOk,
+    scriptDepthOk,
+    worksheetSizeOk,
+    montessoriComplete,
+    constructivistComplete,
+    criticalThinkingComplete,
+    issues,
+  };
+}
+
+export function parseSingleLessonInput(body: unknown): SingleLessonInput {
+  return SingleLessonInputSchema.parse(body);
 }

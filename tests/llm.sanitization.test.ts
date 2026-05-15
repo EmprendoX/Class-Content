@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeEnglishContent } from '@/lib/llm';
-import { WeeklyProgramSchema } from '@/lib/schemas';
+import { WeeklyProgramSchema, LessonPlanInputSchema } from '@/lib/schemas';
 
 const basePedagogyFlags = {
   montessori: { choice: true, hands_on: true, prepared_environment: true, self_correction: true },
@@ -9,73 +8,81 @@ const basePedagogyFlags = {
 };
 
 const baseMontessoriElements = {
-  prepared_environment: 'Shelf stations with labeled trays',
-  manipulatives: 'Hands-on kit with varied textures and scales',
-  choice: 'Learners pick two of three stations',
-  self_correction: 'Self-check cards at each station',
+  prepared_environment: 'Estaciones con bandejas etiquetadas',
+  manipulatives: 'Kit con texturas y escalas variadas',
+  choice: 'Los alumnos eligen dos de tres estaciones',
+  self_correction: 'Tarjetas de auto-corrección en cada estación',
 };
 
 const makeLesson = (title: string) => ({
   title,
-  objectives: ['Identify patterns', 'Build evidence-based claims'],
-  materials: ['Journal', 'Science kit'],
+  objectives: ['Identificar patrones', 'Construir afirmaciones con evidencia'],
+  materials: ['Cuaderno de bitácora', 'Kit de ciencias'],
   activities: {
-    prior_knowledge: 'Students recall prior experiments with plants.',
-    exploration: 'Small groups build terrariums with learner choice of materials.',
-    concept_building: 'Facilitator guíes a shared model with evidence notes.',
-    reflection: 'Learners self-correct using a checklist and share takeaways.',
+    prior_knowledge: 'Los estudiantes recuerdan experimentos previos con plantas.',
+    exploration: 'Pequeños grupos construyen terrarios con elección de materiales.',
+    concept_building: 'El facilitador guía un modelo compartido con evidencia.',
+    reflection: 'Los alumnos se auto-corrigen y comparten conclusiones.',
   },
   montessori: baseMontessoriElements,
   critical_questions: [
-    'How does evidencía change your claim?',
-    'What patterns do you observe?',
-    'Where do you see room for self-correction?',
+    '¿Cómo cambia la evidencia tu afirmación?',
+    '¿Qué patrones observás?',
+    '¿Dónde ves espacio para la auto-corrección?',
   ],
-  assessment: 'Observation notes plus a quick exit ticket.',
-  duration: '55 minutes',
-  age_range: 'Ages 9-11',
+  assessment: 'Notas de observación y ticket de salida.',
+  duration: '55 minutos',
+  age_range: '9 a 11 años',
   pedagogy_flags: basePedagogyFlags,
 });
 
-describe('sanitizeEnglishContent', () => {
-  it('removes diacritics before schema validation runs', () => {
-    const weeklyProgramWithAccents = {
-      weeklyTheme: 'Energía and Motion',
-      overview: 'Learners explore motion with hands-on investigación.',
+describe('Spanish content preservation', () => {
+  it('keeps accents and ñ intact through input validation', () => {
+    const result = LessonPlanInputSchema.parse({
+      weeklyTheme: 'Energía y materia',
+      subjectArea: 'Matemáticas',
+      gradeLevel: '4° primaria — niños de 9 a 10 años',
+      learnerProfile: 'Grupo con motivación alta y curiosidad por la ciencia',
+      constraints: 'Materiales económicos disponibles en el aula',
+    });
+
+    expect(result.weeklyTheme).toBe('Energía y materia');
+    expect(result.subjectArea).toBe('Matemáticas');
+    expect(result.gradeLevel).toContain('niños');
+  });
+
+  it('passes weekly program schema validation with Spanish lessons', () => {
+    const weeklyProgram = {
+      weeklyTheme: 'Energía y movimiento',
+      overview: 'Los aprendices exploran el movimiento con investigaciones prácticas.',
       template: {
-        lesson: 'Objectives, materials, constructivist phases, critical questions, assessment, checklists',
-        lesson_schema: makeLesson('Template lesson'),
-        weekly_template: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'],
+        lesson: 'Objetivos, materiales, fases constructivistas, preguntas, evaluación, checklists',
+        lesson_schema: makeLesson('Lección plantilla'),
+        weekly_template: ['Clase 1', 'Clase 2', 'Clase 3', 'Clase 4', 'Clase 5'],
         reference_week: {
-          theme: 'Exploración de Ecosistemas',
+          theme: 'Exploración de ecosistemas',
           lessons: [
-            makeLesson('Reference 1'),
-            makeLesson('Reference 2'),
-            makeLesson('Reference 3'),
-            makeLesson('Reference 4'),
-            makeLesson('Reference 5'),
+            makeLesson('Referencia 1'),
+            makeLesson('Referencia 2'),
+            makeLesson('Referencia 3'),
+            makeLesson('Referencia 4'),
+            makeLesson('Referencia 5'),
           ],
         },
       },
       lessons: [
-        makeLesson('Lesson 1'),
-        makeLesson('Lesson 2'),
-        makeLesson('Lesson 3'),
-        {
-          ...makeLesson('Lesson 4'),
-          activities: {
-            ...makeLesson('Lesson 4').activities,
-            concept_building: 'Peer revisión y reflexión rápida',
-          },
-        },
-        makeLesson('Lesson 5'),
+        makeLesson('Lección 1'),
+        makeLesson('Lección 2'),
+        makeLesson('Lección 3'),
+        makeLesson('Lección 4'),
+        makeLesson('Lección 5'),
       ],
     };
 
-    const sanitized = sanitizeEnglishContent(weeklyProgramWithAccents);
+    const parsed = WeeklyProgramSchema.parse(weeklyProgram);
 
-    expect(sanitized.lessons[1].critical_questions[0]).toBe('How does evidencia change your claim?');
-    expect(sanitized.lessons[3].activities.concept_building).toBe('Peer revision y reflexion rapida');
-    expect(() => WeeklyProgramSchema.parse(sanitized)).not.toThrow();
+    expect(parsed.weeklyTheme).toBe('Energía y movimiento');
+    expect(parsed.lessons[0].critical_questions[0]).toContain('evidencia');
+    expect(parsed.lessons[0].title).toBe('Lección 1');
   });
 });

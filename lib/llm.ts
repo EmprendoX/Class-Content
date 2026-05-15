@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import {
   CLASS_ORCHESTRATOR_PROMPT,
+  SINGLE_LESSON_SYSTEM_PROMPT,
   WEEKLY_LESSON_SYSTEM_PROMPT,
   WEEKLY_MARKDOWN_FORMAT_PROMPT,
 } from './prompts';
@@ -12,10 +13,16 @@ import {
   ClassPlanRequestSchema,
   LessonPlanInput,
   LessonPlanInputSchema,
+  SingleLesson,
+  SingleLessonInput,
+  SingleLessonInputSchema,
+  SingleLessonSchema,
   ValidatedClassPackage,
+  ValidatedSingleLesson,
   ValidatedWeeklyProgram,
   WeeklyProgram,
   WeeklyProgramSchema,
+  validateSingleLesson,
   validateWeeklyProgram,
   validateClassPackage,
 } from './schemas';
@@ -44,34 +51,6 @@ function logLLMFailure(provider: string, attempt: number, error: unknown) {
 
 async function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function stripAccents(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .replace(/[^\x00-\x7F]+/g, '');
-}
-
-export function sanitizeEnglishContent<T>(payload: T): T {
-  if (typeof payload === 'string') {
-    return stripAccents(payload) as unknown as T;
-  }
-
-  if (Array.isArray(payload)) {
-    return payload.map((item) => sanitizeEnglishContent(item)) as unknown as T;
-  }
-
-  if (payload && typeof payload === 'object') {
-    const sanitizedEntries = Object.entries(payload as Record<string, unknown>).map(([key, value]) => [
-      key,
-      sanitizeEnglishContent(value),
-    ]);
-
-    return Object.fromEntries(sanitizedEntries) as T;
-  }
-
-  return payload;
 }
 
 function ensureStringArray(
@@ -563,8 +542,7 @@ function parseWithSchema<T extends z.ZodTypeAny>(
 
   try {
     const normalized = normalizeWeeklyProgramDraft(parsed);
-    const sanitized = sanitizeEnglishContent(normalized) as T;
-    return schema.parse(sanitized);
+    return schema.parse(normalized);
   } catch (validationError) {
     console.error(`[LLM:${context.stage}] Schema validation failed`, parsed);
     const issues = validationError instanceof z.ZodError ? validationError.issues : undefined;
@@ -590,8 +568,36 @@ function parseWithSchema<T extends z.ZodTypeAny>(
   }
 }
 
+const LANGUAGE_LABELS: Record<LessonPlanInput['language'], string> = {
+  es: 'Español',
+  en: 'English',
+};
+
+const TONE_LABELS: Record<LessonPlanInput['tone'], string> = {
+  ludico: 'Playful and game-based — use metaphors, stories, humor, and challenges that feel like play.',
+  conversacional: 'Conversational and warm — natural, approachable language as if talking with a colleague.',
+  formal: 'Formal and academic — precise pedagogical vocabulary and structured register.',
+  inspirador: 'Inspiring and motivational — frame learning as discovery, emphasize curiosity and growth.',
+};
+
+const USER_TYPE_LABELS: Record<LessonPlanInput['userType'], string> = {
+  maestro: 'Classroom teacher with 20-30 students — include class management cues, curricular alignment, and group dynamics.',
+  educador: 'Trained educator in a broader learning context — use precise pedagogical terminology and reference frameworks.',
+  padre: 'Parent teaching at home with one or two children — favor everyday language, household materials, and flexible pacing.',
+  tutor: 'One-on-one tutor — focus on diagnosing gaps, adapting to the learner pace, and reinforcing concepts.',
+};
+
 export async function generateWeeklyProgram(input: LessonPlanInput): Promise<ValidatedWeeklyProgram> {
-  const prompt = `Weekly theme: ${input.weeklyTheme}\nSubject area: ${input.subjectArea}\nGrade level: ${input.gradeLevel}\nLearner profile: ${input.learnerProfile ?? 'Not provided; assume mixed readiness with opportunities for choice.'}\nConstraints: ${input.constraints ?? 'None provided; keep materials lightweight and classroom-ready.'}\nInstruction: Deliver content-rich lessons with explicit talking points, facts, and named sources (no URLs) instead of meta-instructions or generic prompts.`;
+  const prompt = `Output language: ${LANGUAGE_LABELS[input.language]} (write the entire response in this language)
+Tone: ${TONE_LABELS[input.tone]}
+User role: ${USER_TYPE_LABELS[input.userType]}
+Class duration: ${input.classDuration} minutes per lesson (the four activity phases must sum to this total).
+Weekly theme: ${input.weeklyTheme}
+Subject area: ${input.subjectArea}
+Grade level: ${input.gradeLevel}
+Learner profile: ${input.learnerProfile ?? 'Not provided; assume mixed readiness with opportunities for choice.'}
+Constraints: ${input.constraints ?? 'None provided; keep materials lightweight and classroom-ready.'}
+Instruction: Deliver content-rich lessons with explicit talking points, facts, and named sources (no URLs) instead of meta-instructions or generic prompts.`;
 
   let attempt = 0;
   let lastIssues: string[] = [];
@@ -683,4 +689,95 @@ export function parseLessonPlanInput(body: unknown): LessonPlanInput {
 
 export function parseClassPlanInput(body: unknown): ClassPlanRequest {
   return ClassPlanRequestSchema.parse(body);
+}
+
+// ============================================================================
+// Phase 2 — Single deep lesson generator
+// ============================================================================
+
+const SINGLE_LESSON_MODEL = process.env.LESSON_MODEL || 'gpt-4o';
+
+export function parseSingleLessonInput(body: unknown): SingleLessonInput {
+  return SingleLessonInputSchema.parse(body);
+}
+
+export async function generateSingleLesson(input: SingleLessonInput): Promise<ValidatedSingleLesson> {
+  const expectedDuration = parseInt(input.classDuration, 10);
+
+  const sourceBlock = input.sourceMaterial
+    ? `\n\n<<<SOURCE_MATERIAL filename="${input.sourceFilename ?? 'document'}">>>\n${input.sourceMaterial}\n<<<END_SOURCE_MATERIAL>>>\n\nIMPORTANT: ground the lesson in the source material above as instructed in the system prompt. Quote or paraphrase concrete details. Stay faithful to the source.`
+    : '';
+
+  const prompt = `Output language: ${LANGUAGE_LABELS[input.language]} (write the entire response in this language; preserve accents and ñ verbatim if Spanish).
+Tone: ${TONE_LABELS[input.tone]}
+User role: ${USER_TYPE_LABELS[input.userType]}
+Class duration: ${input.classDuration} minutes (the sum of phases[*].duration_min MUST equal this value).
+Topic: ${input.topic}
+Subject area: ${input.subjectArea}
+Grade level: ${input.gradeLevel}
+Learning objective (if specified by user): ${input.learningObjective ?? 'Not specified — infer a measurable goal that fits the topic and grade level.'}
+Learner profile: ${input.learnerProfile ?? 'Mixed readiness with opportunities for choice and differentiation.'}
+Constraints: ${input.constraints ?? 'None specified; favor low-cost, classroom-ready materials.'}
+Source material attached: ${input.sourceMaterial ? `Yes — "${input.sourceFilename ?? 'document'}" (use as authoritative reference, see block below).` : 'No.'}
+
+Produce the complete lesson now. Every section must be specific to "${input.topic}" at "${input.gradeLevel}" level — no generic placeholders. Apply the substitute teacher test: the output must be teachable cold without research.${sourceBlock}`;
+
+  let attempt = 0;
+  let lastIssues: string[] = [];
+  let lastDraft: SingleLesson | null = null;
+  let lastRaw = '';
+
+  while (attempt < MAX_LLM_ATTEMPTS) {
+    const repairContext =
+      attempt === 0 || lastIssues.length === 0
+        ? ''
+        : `\n\nThe previous draft failed validation with these issues:\n- ${lastIssues.join('\n- ')}\nReturn a corrected, fully populated JSON only. Focus on fixing the listed issues without losing the depth of the rest.${lastDraft ? `\nPrevious attempt for reference:\n${JSON.stringify(lastDraft, null, 2)}` : ''}`;
+
+    const response = await generateText(
+      `${prompt}${repairContext}`,
+      SINGLE_LESSON_SYSTEM_PROMPT,
+      SINGLE_LESSON_MODEL,
+      true
+    );
+    lastRaw = response;
+
+    let structured: SingleLesson;
+    try {
+      structured = parseWithSchema(response, SingleLessonSchema, {
+        provider: 'openai',
+        stage: 'single-lesson',
+      });
+    } catch (err) {
+      if (err instanceof LLMServiceError && err.code === 'schema-validation') {
+        attempt += 1;
+        const issuesText =
+          err.meta && typeof err.meta === 'object' && 'issues' in err.meta && Array.isArray(err.meta.issues)
+            ? (err.meta.issues as string[])
+            : [err.message];
+        lastDraft = null;
+        lastIssues = issuesText;
+        if (attempt < MAX_LLM_ATTEMPTS) {
+          await wait(RETRY_BASE_DELAY_MS * attempt);
+          continue;
+        }
+        throw err;
+      }
+      throw err;
+    }
+
+    const validation = validateSingleLesson(structured, expectedDuration);
+    if (validation.issues.length === 0) {
+      return { ...structured, validation };
+    }
+
+    attempt += 1;
+    lastDraft = structured;
+    lastIssues = validation.issues;
+    await wait(RETRY_BASE_DELAY_MS * attempt);
+  }
+
+  throw new LLMServiceError('Single lesson failed validation after retries', 'schema-validation', {
+    issues: lastIssues,
+    lastRaw,
+  });
 }

@@ -7,7 +7,7 @@ import type {
 } from '@/lib/schemas';
 
 const baseLessonValidation = {
-  englishOnly: true,
+  languageConsistent: true,
   hasObjectives: true,
   hasMaterials: true,
   hasActivities: true,
@@ -67,7 +67,7 @@ const validatedProgram: ValidatedWeeklyProgram = {
   },
   lessons: [makeLesson('Lesson 1'), makeLesson('Lesson 2'), makeLesson('Lesson 3'), makeLesson('Lesson 4'), makeLesson('Lesson 5')],
   validation: {
-    englishOnly: true,
+    languageConsistent: true,
     lessonsPassed: 5,
     totalLessons: 5,
     blockingIssues: [],
@@ -91,6 +91,10 @@ describe('buildWeeklyLessonProgram', () => {
       gradeLevel: 'Upper Elementary',
       learnerProfile: 'Curious experimenters',
       constraints: 'Recycled materials preferred',
+      language: 'en',
+      tone: 'conversacional',
+      userType: 'maestro',
+      classDuration: '45',
     };
 
     const stages: Array<{ stage: string; status?: string }> = [];

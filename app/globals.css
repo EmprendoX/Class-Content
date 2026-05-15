@@ -2,68 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    font-family: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: #0F172A;
+    background-color: #F8FAFC;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+    border-radius: 6px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #DCE0FF;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8B95FF;
+    background-clip: padding-box;
+    border: 2px solid transparent;
+  }
+
+  * {
+    scrollbar-color: #DCE0FF transparent;
+    scrollbar-width: thin;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+@layer utilities {
+  .bg-hero {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.16), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 90% 30%, rgba(255, 111, 60, 0.08), transparent 70%),
+      linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+  }
+
+  .text-gradient-brand {
+    background-image: linear-gradient(135deg, #4338CA 0%, #6D72E8 50%, #FF6F3C 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
-/* Prose styles for ebook preview */
+/* Prose styles for rendered Markdown / lesson preview */
 .prose {
-  color: #333;
+  color: #334155;
+  line-height: 1.7;
 }
 
 .prose h1,
 .prose h2,
 .prose h3 {
-  color: #00366D;
-  font-weight: 600;
+  color: #312E81;
+  font-weight: 700;
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 }
 
 .prose h1 {
   font-size: 2.25em;
   margin-top: 0;
-  margin-bottom: 0.8888889em;
-  line-height: 1.1111111;
-  text-align: center;
+  margin-bottom: 0.6em;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .prose h2 {
   font-size: 1.5em;
-  margin-top: 2em;
-  margin-bottom: 1em;
-  line-height: 1.3333333;
-  text-align: center;
+  margin-top: 1.6em;
+  margin-bottom: 0.8em;
+  line-height: 1.3;
 }
 
 .prose h3 {
-  font-size: 1.25em;
-  margin-top: 1.6em;
-  margin-bottom: 0.6em;
-  line-height: 1.6;
+  font-size: 1.2em;
+  margin-top: 1.4em;
+  margin-bottom: 0.5em;
+  line-height: 1.4;
+  color: #4338CA;
 }
 
 .prose p {
-  margin-top: 1.25em;
-  margin-bottom: 1.25em;
+  margin-top: 0.9em;
+  margin-bottom: 0.9em;
 }
 
 .prose strong {
   font-weight: 600;
+  color: #0F172A;
 }
 
 .prose em {
@@ -71,10 +116,46 @@ body {
 }
 
 .prose code {
-  background-color: #f4f4f4;
+  background-color: #EEF0FF;
+  color: #4338CA;
   padding: 0.2em 0.4em;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   font-size: 0.875em;
+  font-weight: 500;
 }
 
+.prose blockquote {
+  border-left: 3px solid #FF6F3C;
+  padding-left: 1em;
+  color: #475569;
+  font-style: italic;
+  margin: 1em 0;
+}
 
+.prose ul,
+.prose ol {
+  padding-left: 1.5em;
+  margin: 0.6em 0;
+}
+
+.prose li {
+  margin: 0.3em 0;
+}
+
+@media print {
+  body {
+    background: white !important;
+  }
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+  .prose {
+    color: #111 !important;
+  }
+  .prose h1,
+  .prose h2,
+  .prose h3 {
+    color: #111 !important;
+  }
+}

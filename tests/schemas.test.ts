@@ -43,7 +43,7 @@ const makeLesson = (title: string) => ({
 });
 
 describe('LessonPlanInputSchema', () => {
-  it('trims optional values and enforces English content', () => {
+  it('trims optional values and applies sensible defaults', () => {
     const result = LessonPlanInputSchema.parse({
       weeklyTheme: '  Exploring Ecosystems ',
       subjectArea: ' Science ',
@@ -54,14 +54,48 @@ describe('LessonPlanInputSchema', () => {
 
     expect(result.weeklyTheme).toBe('Exploring Ecosystems');
     expect(result.constraints).toBe('Low-cost materials only');
+    expect(result.language).toBe('es');
+    expect(result.tone).toBe('conversacional');
+    expect(result.userType).toBe('maestro');
+    expect(result.classDuration).toBe('45');
   });
 
-  it('rejects non-English characters', () => {
+  it('accepts Spanish characters (acentos and ñ)', () => {
+    const result = LessonPlanInputSchema.parse({
+      weeklyTheme: 'Energía y materia',
+      subjectArea: 'Matemáticas',
+      gradeLevel: 'Primaria — niños de 9 a 11 años',
+    });
+
+    expect(result.weeklyTheme).toBe('Energía y materia');
+    expect(result.subjectArea).toBe('Matemáticas');
+    expect(result.gradeLevel).toBe('Primaria — niños de 9 a 11 años');
+  });
+
+  it('honors explicit language/tone/userType/classDuration choices', () => {
+    const result = LessonPlanInputSchema.parse({
+      weeklyTheme: 'Fractions',
+      subjectArea: 'Math',
+      gradeLevel: 'Grade 4',
+      language: 'en',
+      tone: 'inspirador',
+      userType: 'padre',
+      classDuration: '90',
+    });
+
+    expect(result.language).toBe('en');
+    expect(result.tone).toBe('inspirador');
+    expect(result.userType).toBe('padre');
+    expect(result.classDuration).toBe('90');
+  });
+
+  it('rejects unknown enum values', () => {
     expect(() =>
       LessonPlanInputSchema.parse({
-        weeklyTheme: 'Energía y materia',
-        subjectArea: 'Science',
-        gradeLevel: 'Upper',
+        weeklyTheme: 'Test',
+        subjectArea: 'Test',
+        gradeLevel: 'Test',
+        language: 'fr',
       })
     ).toThrow();
   });
@@ -80,7 +114,7 @@ describe('Lesson and weekly schemas', () => {
     ).toThrow();
   });
 
-  it('validates weekly program length and English-only output', () => {
+  it('validates weekly program length', () => {
     const weeklyProgram = WeeklyProgramSchema.parse({
       weeklyTheme: 'Forces and Motion',
       overview: 'Learners explore motion with hands-on investigations.',
