@@ -111,5 +111,18 @@ async function issueAndEmail(args: { email: string; preapprovalId: string }) {
     preapprovalId: args.preapprovalId,
     plan: 'pro',
   });
-  await sendAccessCodeEmail({ to: args.email, token, expiresAt });
+  if (!process.env.RESEND_API_KEY) {
+    console.info(
+      `[MPWebhook] email skipped (RESEND_API_KEY not set). preapproval=${args.preapprovalId} email=${args.email} token=${token} exp=${expiresAt.toISOString()}`
+    );
+    return;
+  }
+  try {
+    await sendAccessCodeEmail({ to: args.email, token, expiresAt });
+  } catch (err) {
+    console.error(
+      `[MPWebhook] email failed for preapproval=${args.preapprovalId}, token still valid: ${token}`,
+      err
+    );
+  }
 }
