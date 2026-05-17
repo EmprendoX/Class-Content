@@ -16,7 +16,7 @@
     "marked": "^14.1.0",
     "next": "^14.2.18",
     "openai": "^4.68.0",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.1",
     "puppeteer-core": "^23.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

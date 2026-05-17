@@ -59,12 +59,10 @@ export async function extractFromBuffer(
 
   if (isPdf(filename, mimeType)) {
     try {
-      const { PDFParse } = await import('pdf-parse');
-      const parser = new PDFParse({ data: new Uint8Array(buffer) });
-      const result = await parser.getText();
+      const pdfParse = (await import('pdf-parse')).default;
+      const result = await pdfParse(buffer);
       text = (result.text ?? '').trim();
-      pageCount = result.total ?? result.pages?.length ?? 1;
-      await parser.destroy();
+      pageCount = result.numpages ?? 1;
     } catch (err) {
       if (err instanceof SourceExtractionError) throw err;
       console.error('[lib/pdf] PDF parse failed:', err);

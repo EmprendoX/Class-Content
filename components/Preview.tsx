@@ -188,9 +188,13 @@ function Section({
           />
         </div>
       </button>
-      {open && (
-        <div className="px-5 pb-5 pt-1 space-y-3 text-sm text-ink-700 animate-fade-in">{children}</div>
-      )}
+      <div
+        className={`px-5 pb-5 pt-1 space-y-3 text-sm text-ink-700 ${
+          open ? 'animate-fade-in' : 'hidden print:block'
+        }`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -337,15 +341,11 @@ export default function Preview({ lesson }: PreviewProps) {
       {/* Actions */}
       <div className="flex flex-wrap gap-2 items-center no-print">
         <button
-          onClick={() => downloadBinary('pdf')}
-          disabled={downloading !== null}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold bg-gradient-brand text-white rounded-xl shadow-pop hover:shadow-glow hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:translate-y-0"
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold bg-gradient-brand text-white rounded-xl shadow-pop hover:shadow-glow hover:-translate-y-0.5 transition-all"
+          title={lang === 'es' ? "Selecciona 'Guardar como PDF' como destino" : "Choose 'Save as PDF' as destination"}
         >
-          {downloading === 'pdf' ? (
-            <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <Icon name="download" size={14} />
-          )}
+          <Icon name="download" size={14} />
           {t.download_pdf}
         </button>
         <button
@@ -373,13 +373,6 @@ export default function Preview({ lesson }: PreviewProps) {
         >
           <Icon name="copy" size={14} />
           {t.copy}
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold bg-white text-ink-800 border border-ink-200 rounded-xl hover:bg-ink-50 hover:border-ink-300 transition-colors"
-        >
-          <Icon name="print" size={14} />
-          {t.print}
         </button>
         {downloadError && (
           <span className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5">
