@@ -4,6 +4,10 @@ import { existsSync } from 'node:fs';
 import chromium from '@sparticuz/chromium';
 import puppeteer, { type Browser } from 'puppeteer-core';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 const MAX_HTML_LENGTH = 500 * 1024; // 500 KB aprox.
 
 function resolveLocalChromeExecutable(): string | null {

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { extractFromBuffer, SourceExtractionError } from '@/lib/pdf';
 
+export const runtime = 'nodejs';
 export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   const requestId = randomUUID();

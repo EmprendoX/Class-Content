@@ -1,5 +1,3 @@
-import { PDFParse } from 'pdf-parse';
-
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_PAGES = 50;
 const MAX_WORDS = 20_000;
@@ -61,6 +59,7 @@ export async function extractFromBuffer(
 
   if (isPdf(filename, mimeType)) {
     try {
+      const { PDFParse } = await import('pdf-parse');
       const parser = new PDFParse({ data: new Uint8Array(buffer) });
       const result = await parser.getText();
       text = (result.text ?? '').trim();
@@ -68,6 +67,7 @@ export async function extractFromBuffer(
       await parser.destroy();
     } catch (err) {
       if (err instanceof SourceExtractionError) throw err;
+      console.error('[lib/pdf] PDF parse failed:', err);
       throw new SourceExtractionError(
         'No pudimos leer este PDF. Verifica que no esté dañado o protegido.',
         'parse-failed'
