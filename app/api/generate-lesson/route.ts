@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { buildSingleLesson } from '@/lib/orchestrator';
 import { LLMServiceError, parseSingleLessonInput } from '@/lib/llm';
+import { requireAccess } from '@/lib/access/guard';
 import type { SingleLessonInput } from '@/lib/schemas';
 
 export const maxDuration = 120;
@@ -9,6 +10,9 @@ export const maxDuration = 120;
 export async function POST(request: NextRequest) {
   const requestId = randomUUID();
   const startedAt = Date.now();
+
+  const gate = await requireAccess(request, requestId);
+  if (!gate.ok) return gate.response;
 
   try {
     const body = await request.json();

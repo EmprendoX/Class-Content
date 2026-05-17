@@ -273,6 +273,12 @@ export default function ChatForm({ onSubmit, disabled }: ChatFormProps) {
       </details>
 
       {/* CTA */}
+      <div className="flex items-center justify-end -mb-2">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ink-500 bg-ink-50 border border-ink-100 rounded-full px-2.5 py-1">
+          <Icon name="sparkle" size={11} className="text-brand-500" />
+          {t('Hasta 30 clases / mes', 'Up to 30 lessons / month')}
+        </span>
+      </div>
       <button
         type="submit"
         disabled={disabled}

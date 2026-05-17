@@ -12,6 +12,7 @@
   "dependencies": {
     "@sparticuz/chromium": "^131.0.0",
     "epub-gen": "^0.1.0",
+    "jose": "^6.2.3",
     "marked": "^14.1.0",
     "next": "^14.2.18",
     "openai": "^4.68.0",
@@ -19,6 +20,7 @@
     "puppeteer-core": "^23.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "resend": "^6.12.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

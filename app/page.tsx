@@ -7,7 +7,11 @@ import Preview from '@/components/Preview';
 import Logo from '@/components/Logo';
 import Icon from '@/components/Icon';
 import EmptyState from '@/components/EmptyState';
+import PaywallGate from '@/components/PaywallGate';
+import AccessCodeModal from '@/components/AccessCodeModal';
 import type { SingleLessonResponse } from '@/lib/schemas';
+
+const MP_SUBSCRIPTION_URL = process.env.NEXT_PUBLIC_MP_SUBSCRIPTION_URL || '#';
 
 type ProgressStep = 'outline' | 'validate' | 'format' | null;
 
@@ -18,6 +22,7 @@ export default function Home() {
   const [lesson, setLesson] = useState<SingleLessonResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submittedLanguage, setSubmittedLanguage] = useState<'es' | 'en'>('es');
+  const [accessModalOpen, setAccessModalOpen] = useState(false);
 
   const handleSubmit = async (data: LessonPlanForm) => {
     setSubmittedLanguage(data.language);
@@ -39,6 +44,20 @@ export default function Home() {
       if (!response.ok) {
         if (contentType.includes('application/json')) {
           const errorData = await response.json();
+          if (
+            response.status === 402 ||
+            errorData.code === 'no-subscription' ||
+            errorData.code === 'subscription-expired' ||
+            errorData.code === 'invalid-access-code'
+          ) {
+            try {
+              window.localStorage.removeItem('aula_subscribed');
+            } catch {
+              /* ignore */
+            }
+            setAccessModalOpen(true);
+            return;
+          }
           throw new Error(errorData.error || errorData.details || 'The lesson could not be generated');
         }
         const errorText = await response.text();
@@ -208,6 +227,7 @@ export default function Home() {
         </header>
 
         {/* Grid */}
+        <PaywallGate subscriptionUrl={MP_SUBSCRIPTION_URL}>
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-6 lg:gap-8 items-start">
           {/* Left: form panel */}
           <section className="lg:sticky lg:top-24 bg-white rounded-3xl shadow-soft border border-ink-100 overflow-hidden">
@@ -264,6 +284,16 @@ export default function Home() {
             </div>
           </section>
         </div>
+        </PaywallGate>
+
+        <AccessCodeModal
+          open={accessModalOpen}
+          onClose={() => setAccessModalOpen(false)}
+          onSuccess={() => {
+            setAccessModalOpen(false);
+            window.location.reload();
+          }}
+        />
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t border-ink-100 text-center text-sm text-ink-500 no-print">

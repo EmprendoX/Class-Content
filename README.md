@@ -252,3 +252,72 @@ npm run test
 ```
 
 A coverage report is generated locally in `coverage/`.
+
+## Monetización MVP (Mercado Pago + código de acceso por email)
+
+El endpoint `POST /api/generate-lesson` está protegido por una suscripción Mercado Pago de **200 MXN/mes**. El flujo es:
+
+1. El usuario hace click en el CTA del paywall y va al link de Mercado Pago (`NEXT_PUBLIC_MP_SUBSCRIPTION_URL`).
+2. Cuando MP autoriza la suscripción, envía un webhook a `POST /api/mp/webhook`.
+3. El backend verifica la firma `x-signature`, consulta el estado real con `GET /preapproval/{id}`, firma un JWT de 31 días y manda un email vía Resend con un link `/acceso?code=<JWT>`.
+4. El usuario abre el link → `/api/access/verify` setea una cookie HttpOnly `aula_access`.
+5. Las llamadas a `/api/generate-lesson` validan el JWT vía cookie; si falta o expiró devuelven `402 { code: 'no-subscription' | 'subscription-expired' }` y la UI abre el modal de "Ingresa tu código".
+
+No hay base de datos: la verdad vive en el JWT firmado y en la API de Mercado Pago. Las renovaciones mensuales reciben un webhook `subscription_authorized_payment` que reemite un nuevo JWT.
+
+### Variables de entorno
+
+Copia `.env.example` a `.env.local` y completa:
+
+| Variable | Descripción |
+|---|---|
+| `MP_ACCESS_TOKEN` | Access token del vendedor (TEST-... o APP_USR-...). |
+| `MP_WEBHOOK_SECRET` | Clave secreta del webhook configurada en panel MP. |
+| `NEXT_PUBLIC_MP_SUBSCRIPTION_URL` | Link público del preapproval (lo creas manualmente en panel MP). |
+| `ACCESS_JWT_SECRET` | ≥ 32 caracteres. Genera con `openssl rand -base64 48`. |
+| `ACCESS_JWT_ISSUER` | Issuer fijo, ej. `aula.mx`. |
+| `REVOKED_JTIS` | (Opcional) lista de `jti` revocados, separados por coma. Kill switch sin DB. |
+| `RESEND_API_KEY` | API key de Resend. |
+| `RESEND_FROM` | Remitente verificado, ej. `Aula <acceso@aula.mx>`. |
+| `APP_BASE_URL` | URL canónica (usada en links del email). |
+
+### Setup de Mercado Pago
+
+1. Crea una aplicación en https://www.mercadopago.com.mx/developers.
+2. **Crea el plan de suscripción** (Suscripciones → Plan) en 200 MXN MXN/mes y copia el **link público de checkout** a `NEXT_PUBLIC_MP_SUBSCRIPTION_URL`.
+3. **Configura el webhook**: panel → Webhooks → Configurar notificaciones.
+   - URL: `https://<tu-dominio>/api/mp/webhook` (en dev usa `ngrok http 3000`).
+   - Eventos: `preapproval` y `subscription_authorized_payment`.
+   - Copia la clave secreta a `MP_WEBHOOK_SECRET`.
+4. Copia el access token a `MP_ACCESS_TOKEN` (TEST en dev, APP_USR en prod — el secret del webhook es distinto por modo).
+
+### Probar en sandbox
+
+Usa los **usuarios de prueba** de MP (panel → Cuentas de prueba) para crear un comprador TEST y pagar con una de las [tarjetas de prueba](https://www.mercadopago.com.mx/developers/es/docs/checkout-pro/additional-content/test-cards) (ej. Mastercard `5031 7557 3453 0604`).
+
+1. `npm run dev` y `ngrok http 3000` en otra terminal.
+2. Configura el webhook del panel apuntando al túnel ngrok.
+3. Inicia sesión como el comprador TEST en otra ventana, abre el link de checkout, paga.
+4. Revisa logs del servidor: deberías ver `[MPWebhook] ... preapproval ... status=authorized`.
+5. Llega un email de Resend con el código y el link `/acceso?code=...`.
+6. Click → cookie seteada → puedes generar clases.
+
+### Regenerar un código manualmente
+
+Si un usuario pierde su email, puedes regenerar un JWT desde un script local:
+
+```bash
+node -e "
+const { signAccessToken } = require('./lib/access/jwt');
+require('dotenv').config({ path: '.env.local' });
+signAccessToken({ email: 'docente@ejemplo.com', preapprovalId: 'pre_xxx' })
+  .then(r => console.log(r.token));
+"
+```
+
+### Lo que el MVP NO hace
+
+- No persiste suscripciones en una base de datos (la fuente de verdad es la API de MP + JWT firmado).
+- No enforza la cuota de 30 clases/mes server-side (se muestra como expectativa en la UI).
+- No tiene panel admin: regeneración y revocación se hacen con scripts/env vars.
+- No emite CFDI: MP genera comprobante MP estándar; factura fiscal se atiende manualmente.
