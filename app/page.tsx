@@ -9,6 +9,7 @@ import Icon from '@/components/Icon';
 import EmptyState from '@/components/EmptyState';
 import PaywallGate from '@/components/PaywallGate';
 import AccessCodeModal from '@/components/AccessCodeModal';
+import TopNav from '@/components/TopNav';
 import type { SingleLessonResponse } from '@/lib/schemas';
 
 const MP_SUBSCRIPTION_URL = process.env.NEXT_PUBLIC_MP_SUBSCRIPTION_URL || '#';
@@ -171,22 +172,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-hero">
-      {/* Top navigation */}
-      <nav className="sticky top-0 z-30 backdrop-blur-md bg-white/75 border-b border-ink-100 no-print">
-        <div className="container mx-auto px-4 max-w-7xl flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <Logo size={32} />
-            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-accent-600 bg-accent-50 border border-accent-200 px-2 py-0.5 rounded-full">
-              <Icon name="sparkle" size={10} />
-              Beta
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-ink-500">
-            <Icon name="globe" size={14} />
-            <span className="hidden sm:inline">ES · EN</span>
-          </div>
-        </div>
-      </nav>
+      <TopNav />
 
       <main className="container mx-auto px-4 py-10 sm:py-14 max-w-7xl">
         {/* Hero */}
