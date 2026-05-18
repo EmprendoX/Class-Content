@@ -226,8 +226,8 @@ export async function POST(request: NextRequest) {
       code: 'export-failed',
       requestId,
     };
-    if (error instanceof Error) {
-      payload.details = error.message; // TEMPORARY: expose for production diagnostic — REMOVE after fix
+    if (process.env.NODE_ENV !== 'production' && error instanceof Error) {
+      payload.details = error.message;
     }
     return NextResponse.json(payload, { status: 500 });
   } finally {
