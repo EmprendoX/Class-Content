@@ -3,7 +3,27 @@ import { randomUUID } from 'node:crypto';
 import { buildSingleLesson } from '@/lib/orchestrator';
 import { LLMServiceError, parseSingleLessonInput } from '@/lib/llm';
 import { requireAccess } from '@/lib/access/guard';
-import type { SingleLessonInput } from '@/lib/schemas';
+import type { SingleLessonInput, SingleLessonResponse } from '@/lib/schemas';
+import { isDbConfigured } from '@/lib/db/client';
+import { getOrCreateUserByEmail } from '@/lib/db/users';
+import { saveLesson } from '@/lib/db/lessons';
+
+async function persistLesson(
+  email: string,
+  lesson: SingleLessonResponse,
+  requestId: string
+): Promise<string | null> {
+  if (!isDbConfigured()) return null;
+  try {
+    const user = await getOrCreateUserByEmail(email);
+    const row = await saveLesson({ userId: user.id, lesson, kind: 'quick' });
+    console.info(`[SingleLesson] ${requestId} persisted as ${row.id}`);
+    return row.id;
+  } catch (err) {
+    console.error(`[SingleLesson] ${requestId} persistence failed`, err);
+    return null;
+  }
+}
 
 export const maxDuration = 120;
 
@@ -73,7 +93,9 @@ export async function POST(request: NextRequest) {
               },
             });
 
-            send('complete', { lesson, requestId });
+            const lessonId = await persistLesson(gate.payload.sub, lesson, requestId);
+
+            send('complete', { lesson, lessonId, requestId });
             console.info(
               `[SingleLesson] ${requestId} streaming generation completed in ${Date.now() - startedAt}ms`
             );
@@ -120,7 +142,8 @@ export async function POST(request: NextRequest) {
     }
 
     const lesson = await buildSingleLesson(validatedInput);
-    return NextResponse.json(lesson, { status: 200 });
+    const lessonId = await persistLesson(gate.payload.sub, lesson, requestId);
+    return NextResponse.json({ ...lesson, lessonId }, { status: 200 });
   } catch (error) {
     if (error instanceof LLMServiceError) {
       console.error(`[SingleLesson] ${requestId} generation failed`, {
