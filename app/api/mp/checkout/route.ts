@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
-import { createPreapproval } from '@/lib/mp/client';
 import { insertPending } from '@/lib/db/pending-subscriptions';
 
 export const runtime = 'nodejs';
@@ -8,8 +7,9 @@ export const dynamic = 'force-dynamic';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function getBaseUrl(): string {
-  return process.env.APP_BASE_URL || 'http://localhost:3000';
+function buildCheckoutUrl(base: string, externalReference: string): string {
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}external_reference=${encodeURIComponent(externalReference)}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -37,9 +37,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const planId = process.env.MP_PREAPPROVAL_PLAN_ID;
-  if (!planId) {
-    console.error(`[Checkout] ${requestId} MP_PREAPPROVAL_PLAN_ID is not set.`);
+  const subscriptionUrl =
+    process.env.MP_SUBSCRIPTION_URL || process.env.NEXT_PUBLIC_MP_SUBSCRIPTION_URL;
+  if (!subscriptionUrl) {
+    console.error(
+      `[Checkout] ${requestId} subscription URL is not set (NEXT_PUBLIC_MP_SUBSCRIPTION_URL).`
+    );
     return NextResponse.json(
       {
         error: 'La suscripción no está disponible en este momento.',
@@ -66,42 +69,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  try {
-    const preapproval = await createPreapproval({
-      preapprovalPlanId: planId,
-      payerEmail: rawEmail,
-      externalReference,
-      backUrl: `${getBaseUrl()}/acceso`,
-    });
+  const initPoint = buildCheckoutUrl(subscriptionUrl, externalReference);
+  console.info(
+    `[Checkout] ${requestId} ext_ref=${externalReference} email=${rawEmail} redirecting to MP`
+  );
 
-    console.info(
-      `[Checkout] ${requestId} preapproval=${preapproval.id} ext_ref=${externalReference} status=${preapproval.status}`
-    );
-
-    if (!preapproval.init_point) {
-      throw new Error('MP did not return init_point');
-    }
-
-    return NextResponse.json(
-      {
-        ok: true,
-        init_point: preapproval.init_point,
-        preapprovalId: preapproval.id,
-      },
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error(`[Checkout] ${requestId} createPreapproval failed`, err);
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : 'No pudimos crear tu suscripción en Mercado Pago.',
-        code: 'mp-error',
-        requestId,
-      },
-      { status: 502 }
-    );
-  }
+  return NextResponse.json(
+    { ok: true, init_point: initPoint, externalReference },
+    { status: 200 }
+  );
 }
