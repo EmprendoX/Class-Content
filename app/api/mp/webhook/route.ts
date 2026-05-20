@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { verifyMpSignature } from '@/lib/mp/verify-signature';
 import { getPreapproval, getAuthorizedPayment } from '@/lib/mp/client';
 import { wasProcessed, markProcessed } from '@/lib/mp/idempotency';
+import { resolveEmail } from '@/lib/mp/resolve-email';
 import { signAccessToken } from '@/lib/access/jwt';
 import { sendAccessCodeEmail } from '@/lib/email/resend';
 
@@ -66,13 +67,17 @@ export async function POST(request: NextRequest) {
     if (type === 'preapproval') {
       const preapproval = await getPreapproval(dataId);
       console.info(
-        `[MPWebhook] ${requestId} preapproval ${dataId} status=${preapproval.status}`
+        `[MPWebhook] ${requestId} preapproval ${dataId} status=${preapproval.status} ext_ref=${preapproval.external_reference ?? 'none'}`
       );
-      if (preapproval.status === 'authorized' && preapproval.payer_email) {
-        await issueAndEmail({
-          email: preapproval.payer_email,
-          preapprovalId: preapproval.id,
-        });
+      if (preapproval.status === 'authorized') {
+        const email = await resolveEmail(preapproval);
+        if (email) {
+          await issueAndEmail({ email, preapprovalId: preapproval.id });
+        } else {
+          console.warn(
+            `[MPWebhook] ${requestId} email unresolved, manual intervention required preapproval=${preapproval.id} ext_ref=${preapproval.external_reference ?? 'none'}`
+          );
+        }
       }
     } else if (type === 'subscription_authorized_payment') {
       const authorized = await getAuthorizedPayment(dataId);
@@ -81,11 +86,13 @@ export async function POST(request: NextRequest) {
       );
       if (authorized.status === 'approved' && authorized.preapproval_id) {
         const preapproval = await getPreapproval(authorized.preapproval_id);
-        if (preapproval.payer_email) {
-          await issueAndEmail({
-            email: preapproval.payer_email,
-            preapprovalId: preapproval.id,
-          });
+        const email = await resolveEmail(preapproval);
+        if (email) {
+          await issueAndEmail({ email, preapprovalId: preapproval.id });
+        } else {
+          console.warn(
+            `[MPWebhook] ${requestId} email unresolved on authorized_payment, manual intervention required preapproval=${preapproval.id} ext_ref=${preapproval.external_reference ?? 'none'}`
+          );
         }
       }
     }

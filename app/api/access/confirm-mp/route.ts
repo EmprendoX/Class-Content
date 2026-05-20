@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { getPreapproval } from '@/lib/mp/client';
+import { resolveEmail } from '@/lib/mp/resolve-email';
 import { signAccessToken } from '@/lib/access/jwt';
 import { setAccessCookieOnResponse } from '@/lib/access/cookie';
 
@@ -47,7 +48,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const email = preapproval.payer_email || `mp:${preapprovalId}`;
+    const email = await resolveEmail(preapproval);
+    if (!email) {
+      console.warn(
+        `[ConfirmMP] ${requestId} email unresolved preapproval=${preapprovalId} ext_ref=${preapproval.external_reference ?? 'none'}`
+      );
+      return NextResponse.json(
+        {
+          error:
+            'Estamos confirmando tu pago. En unos minutos te enviaremos el acceso a tu correo. Si no llega, escríbenos.',
+          code: 'email-unresolved',
+          requestId,
+        },
+        { status: 503 }
+      );
+    }
     const { token, expiresAt } = await signAccessToken({
       email,
       preapprovalId,
